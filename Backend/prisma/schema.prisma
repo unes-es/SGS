@@ -1,0 +1,431 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ───────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  DIRECTEUR
+  COMPTABLE
+  SECRETAIRE
+  PROFESSEUR
+  PARENT
+}
+
+enum StatutEleve {
+  ACTIF
+  SUSPENDU
+  DIPLOME
+  ABANDONNE
+  RADIE
+}
+
+enum TypeContrat {
+  VACATAIRE
+  PERMANENT
+  ADMINISTRATIF
+  STAGIAIRE
+}
+
+enum TypeAbsence {
+  JOURNEE
+  SEANCE
+}
+
+enum TypeEval {
+  CONTROLE
+  EXAMEN
+  TP
+  PROJET
+}
+
+enum TypeFrais {
+  INSCRIPTION
+  SCOLARITE
+  AUTRE
+}
+
+enum ModePaiement {
+  ESPECES
+  VIREMENT
+  CHEQUE
+  EN_LIGNE
+}
+
+enum StatutPaiement {
+  EN_ATTENTE
+  PAYE
+  PARTIEL
+  ANNULE
+}
+
+enum TypeBonCaisse {
+  ENTREE
+  SORTIE
+}
+
+enum JourSemaine {
+  LUNDI
+  MARDI
+  MERCREDI
+  JEUDI
+  VENDREDI
+  SAMEDI
+}
+
+enum TypeDocument {
+  ATTESTATION_SCOLARITE
+  RELEVE_NOTES
+  RECU_PAIEMENT
+  ATTESTATION_TRAVAIL
+  BULLETIN
+  FICHE_PAIE
+  AUTRE
+}
+
+// ─── MODELS ──────────────────────────────────────
+
+model Centre {
+  id              String   @id @default(uuid())
+  nom             String
+  slug            String   @unique
+  adresse         String?
+  ville           String
+  telephone       String?
+  email           String?
+  logoUrl         String?
+  couleurPrimaire String?  @default("#2563eb")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  utilisateurs    Utilisateur[]
+  filieres        Filiere[]
+  classes         Classe[]
+  caisses         Caisse[]
+  personnel       Personnel[]
+  salaires        Salaire[]
+
+  @@map("centres")
+}
+
+model Utilisateur {
+  id           String   @id @default(uuid())
+  centreId     String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  prenom       String
+  nom          String
+  telephone    String?
+  photoUrl     String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  centre       Centre   @relation(fields: [centreId], references: [id])
+  eleve        Eleve?
+  personnel    Personnel?
+  absencesSaisies   Absence[]
+  notesSaisies      Note[]
+  bonsCaisseCrees   BonCaisse[]
+  documentsGeneres  Document[]
+  paiementsEncaisses PaiementEleve[]
+
+  @@index([centreId])
+  @@map("utilisateurs")
+}
+
+model Filiere {
+  id              String   @id @default(uuid())
+  centreId        String
+  nom             String
+  code            String   @unique
+  description     String?
+  dureeMois       Int
+  fraisInscription Decimal @default(0) @db.Decimal(10, 2)
+  fraisScolarite  Decimal  @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  centre          Centre   @relation(fields: [centreId], references: [id])
+  classes         Classe[]
+  matieres        Matiere[]
+
+  @@index([centreId])
+  @@map("filieres")
+}
+
+model Classe {
+  id            String   @id @default(uuid())
+  filiereId     String
+  centreId      String
+  nom           String
+  anneeScolaire String
+  capaciteMax   Int      @default(30)
+  niveau        String?
+  salle         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  filiere       Filiere  @relation(fields: [filiereId], references: [id])
+  centre        Centre   @relation(fields: [centreId], references: [id])
+  eleves        Eleve[]
+  emploisDuTemps EmploiDuTemps[]
+
+  @@index([filiereId])
+  @@index([centreId])
+  @@map("classes")
+}
+
+model Matiere {
+  id            String   @id @default(uuid())
+  filiereId     String
+  nom           String
+  code          String?
+  coefficient   Decimal  @default(1) @db.Decimal(4, 2)
+  volumeHoraire Int?
+  estOptionnelle Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  filiere       Filiere  @relation(fields: [filiereId], references: [id])
+  notes         Note[]
+  emploisDuTemps EmploiDuTemps[]
+  absences      Absence[]
+
+  @@index([filiereId])
+  @@map("matieres")
+}
+
+model EmploiDuTemps {
+  id           String      @id @default(uuid())
+  classeId     String
+  matiereId    String
+  professeurId String
+  jourSemaine  JourSemaine
+  heureDebut   String
+  heureFin     String
+  salle        String?
+  createdAt    DateTime    @default(now())
+
+  classe       Classe      @relation(fields: [classeId], references: [id])
+  matiere      Matiere     @relation(fields: [matiereId], references: [id])
+  professeur   Personnel   @relation(fields: [professeurId], references: [id])
+
+  @@index([classeId])
+  @@index([matiereId])
+  @@map("emplois_du_temps")
+}
+
+model Eleve {
+  id             String      @id @default(uuid())
+  utilisateurId  String      @unique
+  classeId       String
+  centreId       String
+  matricule      String      @unique
+  dateNaissance  DateTime    @db.Date
+  cin            String?
+  adresse        String?
+  nomParent      String?
+  telParent      String?
+  statut         StatutEleve @default(ACTIF)
+  dateInscription DateTime   @db.Date
+  photoUrl       String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id])
+  classe         Classe      @relation(fields: [classeId], references: [id])
+  absences       Absence[]
+  notes          Note[]
+  paiements      PaiementEleve[]
+  documents      Document[]
+
+  @@index([classeId])
+  @@index([centreId])
+  @@map("eleves")
+}
+
+model Absence {
+  id             String      @id @default(uuid())
+  eleveId        String
+  matiereId      String?
+  saisiePar      String
+  dateAbsence    DateTime    @db.Date
+  type           TypeAbsence
+  estJustifiee   Boolean     @default(false)
+  motif          String?
+  justificatifUrl String?
+  createdAt      DateTime    @default(now())
+
+  eleve          Eleve       @relation(fields: [eleveId], references: [id])
+  matiere        Matiere?    @relation(fields: [matiereId], references: [id])
+  saisieParUser  Utilisateur @relation(fields: [saisiePar], references: [id])
+
+  @@index([eleveId])
+  @@index([dateAbsence])
+  @@map("absences")
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  eleveId     String
+  matiereId   String
+  saisiePar   String
+  periode     String
+  typeEval    TypeEval
+  note        Decimal  @db.Decimal(5, 2)
+  noteMax     Decimal  @default(20) @db.Decimal(5, 2)
+  appreciation String?
+  dateEval    DateTime @db.Date
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eleve       Eleve       @relation(fields: [eleveId], references: [id])
+  matiere     Matiere     @relation(fields: [matiereId], references: [id])
+  saisieParUser Utilisateur @relation(fields: [saisiePar], references: [id])
+
+  @@index([eleveId])
+  @@index([matiereId])
+  @@map("notes")
+}
+
+model Personnel {
+  id            String      @id @default(uuid())
+  utilisateurId String      @unique
+  centreId      String
+  typeContrat   TypeContrat
+  poste         String
+  dateEmbauche  DateTime    @db.Date
+  salaireBase   Decimal?    @db.Decimal(10, 2)
+  tauxHoraire   Decimal?    @db.Decimal(8, 2)
+  rib           String?
+  isActive      Boolean     @default(true)
+  cin           String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id])
+  centre        Centre      @relation(fields: [centreId], references: [id])
+  salaires      Salaire[]
+  emploisDuTemps EmploiDuTemps[]
+
+  @@index([centreId])
+  @@map("personnel")
+}
+
+model Salaire {
+  id            String         @id @default(uuid())
+  personnelId   String
+  centreId      String
+  mois          Int
+  annee         Int
+  montantBrut   Decimal        @db.Decimal(10, 2)
+  deductions    Decimal        @default(0) @db.Decimal(10, 2)
+  montantNet    Decimal        @db.Decimal(10, 2)
+  modePaiement  ModePaiement
+  datePaiement  DateTime?      @db.Date
+  statut        StatutPaiement @default(EN_ATTENTE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  personnel     Personnel      @relation(fields: [personnelId], references: [id])
+  centre        Centre         @relation(fields: [centreId], references: [id])
+
+  @@index([personnelId])
+  @@index([centreId])
+  @@map("salaires")
+}
+
+model Caisse {
+  id            String   @id @default(uuid())
+  centreId      String
+  nom           String
+  soldeActuel   Decimal  @default(0) @db.Decimal(12, 2)
+  devise        String   @default("MAD")
+  isActive      Boolean  @default(true)
+  responsableId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  centre        Centre        @relation(fields: [centreId], references: [id])
+  paiements     PaiementEleve[]
+  bonsCaisse    BonCaisse[]
+
+  @@index([centreId])
+  @@map("caisses")
+}
+
+model PaiementEleve {
+  id            String       @id @default(uuid())
+  eleveId       String
+  caisseId      String
+  encaissePar   String
+  typeFrais     TypeFrais
+  montant       Decimal      @db.Decimal(10, 2)
+  modePaiement  ModePaiement
+  datePaiement  DateTime     @db.Date
+  reference     String       @unique
+  periodeMois   Int?
+  periodeAnnee  Int?
+  createdAt     DateTime     @default(now())
+
+  eleve         Eleve        @relation(fields: [eleveId], references: [id])
+  caisse        Caisse       @relation(fields: [caisseId], references: [id])
+  encaisseParUser Utilisateur @relation(fields: [encaissePar], references: [id])
+
+  @@index([eleveId])
+  @@index([caisseId])
+  @@map("paiements_eleves")
+}
+
+model BonCaisse {
+  id            String        @id @default(uuid())
+  caisseId      String
+  creePar       String
+  numero        String        @unique
+  type          TypeBonCaisse
+  montant       Decimal       @db.Decimal(10, 2)
+  motif         String
+  dateOperation DateTime      @db.Date
+  justificatifUrl String?
+  createdAt     DateTime      @default(now())
+
+  caisse        Caisse        @relation(fields: [caisseId], references: [id])
+  creeParUser   Utilisateur   @relation(fields: [creePar], references: [id])
+
+  @@index([caisseId])
+  @@map("bons_caisse")
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  eleveId       String
+  generePar     String
+  type          TypeDocument
+  titre         String
+  fichierUrl    String
+  anneeScolaire String?
+  numeroSerie   String       @unique
+  createdAt     DateTime     @default(now())
+
+  eleve         Eleve        @relation(fields: [eleveId], references: [id])
+  genereParUser Utilisateur  @relation(fields: [generePar], references: [id])
+
+  @@index([eleveId])
+  @@map("documents")
+}
