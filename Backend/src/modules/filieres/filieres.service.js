@@ -3,7 +3,9 @@ const prisma = require('../../config/db')
 async function getAll(centreId) {
   return prisma.filiere.findMany({
     where: { centreId, isActive: true },
-    include: { _count: { select: { classes: true, matieres: true } } },
+    include: {
+      _count: { select: { classes: true, matieres: true } }
+    },
     orderBy: { nom: 'asc' }
   })
 }
@@ -23,7 +25,7 @@ async function getById(id) {
 async function create(data, centreId) {
   const exists = await prisma.filiere.findUnique({ where: { code: data.code } })
   if (exists) throw { statusCode: 409, message: 'Code filière déjà utilisé' }
-  return prisma.filiere.create({ data: { ...data, centreId } })
+  return prisma.filiere.create({ data: { ...data,dureeMois: parseInt(data.dureeMois), centreId } })
 }
 
 async function update(id, data) {
