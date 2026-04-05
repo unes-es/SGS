@@ -15,7 +15,8 @@ async function loginHandler(req, reply) {
 
   reply.setCookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+//    secure: process.env.NODE_ENV === 'production',
+    secure: false, // temp until we add SSL
     sameSite: 'strict',
     path: '/api/auth/refresh',
     maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
