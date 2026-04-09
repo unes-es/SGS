@@ -23,5 +23,11 @@ module.exports = {
   async remove(req, reply) {
     await service.remove(req.params.id)
     return { message: 'Filière désactivée' }
+  },
+  async getElevesParFiliere(req, reply) {
+    const centreId = req.user.role === 'SUPER_ADMIN'
+      ? req.query.centreId || req.user.centreId
+      : req.user.centreId
+    return { data: await service.getElevesParFiliere(centreId) }
   }
 }

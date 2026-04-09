@@ -63,5 +63,12 @@ module.exports = {
       ? req.query.centreId || req.user.centreId
       : req.user.centreId
     return { data: await service.getStats(centreId) }
+  },
+
+  async getRevenueChart(req, reply) {
+    const centreId = req.user.role === 'SUPER_ADMIN'
+      ? req.query.centreId || req.user.centreId
+      : req.user.centreId
+    return { data: await service.getRevenueChart(centreId) }
   }
 }

@@ -7,6 +7,7 @@ async function filieresRoutes(fastify) {
   fastify.addHook('preHandler', authenticate)
 
   fastify.get('/', ctrl.getAll)
+  fastify.get('/stats/eleves-par-filiere', ctrl.getElevesParFiliere)
   fastify.get('/:id', ctrl.getById)
   fastify.post('/', { preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR') }, ctrl.create)
   fastify.put('/:id', { preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR') }, ctrl.update)

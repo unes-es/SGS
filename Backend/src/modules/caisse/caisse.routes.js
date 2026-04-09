@@ -26,6 +26,8 @@ async function caisseRoutes(fastify) {
   fastify.post('/bons', {
     preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'COMPTABLE')
   }, ctrl.createBon)
+
+  fastify.get('/revenue-chart', ctrl.getRevenueChart)
 }
 
 module.exports = caisseRoutes

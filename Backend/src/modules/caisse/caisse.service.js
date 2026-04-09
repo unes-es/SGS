@@ -188,9 +188,35 @@ async function getStats(centreId) {
   }
 }
 
+async function getRevenueChart(centreId) {
+  const months = []
+  const now = new Date()
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const start = new Date(date.getFullYear(), date.getMonth(), 1)
+    const end   = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+
+    const result = await prisma.paiementEleve.aggregate({
+      where: {
+        caisse: { centreId },
+        datePaiement: { gte: start, lte: end }
+      },
+      _sum: { montant: true }
+    })
+
+    months.push({
+      mois: date.toLocaleDateString('fr-FR', { month: 'short' }),
+      revenus: parseFloat(result._sum.montant || 0)
+    })
+  }
+
+  return months
+}
+
 module.exports = {
   getAllCaisses, getCaisseById, createCaisse,
   getAllPaiements, createPaiement,
   getAllBons, createBon,
-  getStats
+  getStats, getRevenueChart
 }

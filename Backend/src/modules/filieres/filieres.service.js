@@ -38,4 +38,20 @@ async function remove(id) {
   return prisma.filiere.update({ where: { id }, data: { isActive: false } })
 }
 
-module.exports = { getAll, getById, create, update, remove }
+async function getElevesParFiliere(centreId) {
+  const filieres = await prisma.filiere.findMany({
+    where: { centreId, isActive: true },
+    include: {
+      classes: {
+        include: { _count: { select: { eleves: true } } }
+      }
+    }
+  })
+
+  return filieres.map(f => ({
+    nom: f.nom,
+    eleves: f.classes.reduce((s, c) => s + c._count.eleves, 0)
+  })).filter(f => f.eleves > 0)
+}
+
+module.exports = { getAll, getById, create, update, remove, getElevesParFiliere }
