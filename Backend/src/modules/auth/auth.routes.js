@@ -29,10 +29,24 @@ const registerSchema = {
 }
 
 async function authRoutes(fastify) {
-  fastify.post('/login',    { schema: loginSchema },    controller.loginHandler)
-  fastify.post('/register', { schema: registerSchema }, controller.registerHandler)
-  fastify.post('/refresh',  controller.refreshHandler)
-  fastify.post('/logout',   controller.logoutHandler)
+  fastify.post('/login', {
+    schema: loginSchema,
+    config: {
+      rateLimit: { max: 10, timeWindow: '15 minutes' }
+    }
+  }, controller.loginHandler)
+
+  fastify.post('/register', {
+    schema: registerSchema
+  }, controller.registerHandler)
+
+  fastify.post('/refresh', {
+    config: {
+      rateLimit: { max: 30, timeWindow: '15 minutes' }
+    }
+  }, controller.refreshHandler)
+
+  fastify.post('/logout', controller.logoutHandler)
   fastify.get('/me', { preHandler: authenticate }, controller.getMeHandler)
 }
 

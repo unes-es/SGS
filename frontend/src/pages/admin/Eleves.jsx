@@ -3,17 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { elevesApi } from '../../api/eleves'
 import { classesApi } from '../../api/classes'
 import { useAuthStore } from '../../store/authStore'
-import Card    from '../../components/ui/Card'
-import Badge   from '../../components/ui/Badge'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
 import { toast } from 'sonner'
 
 const STATUT_COLORS = {
-  ACTIF:     'green',
-  SUSPENDU:  'amber',
-  DIPLOME:   'blue',
+  ACTIF: 'green',
+  SUSPENDU: 'amber',
+  DIPLOME: 'blue',
   ABANDONNE: 'gray',
-  RADIE:     'red',
+  RADIE: 'red',
 }
 
 // ── MODAL ──────────────────────────────────────────
@@ -22,22 +22,22 @@ function EleveModal({ eleve, onClose, centreId }) {
   const isEdit = !!eleve
 
   const [form, setForm] = useState({
-    prenom:       eleve?.utilisateur?.prenom  || '',
-    nom:          eleve?.utilisateur?.nom     || '',
-    email:        eleve?.utilisateur?.email   || '',
-    telephone:    eleve?.utilisateur?.telephone || '',
-    dateNaissance:eleve?.dateNaissance?.slice(0, 10) || '',
-    classeId:     eleve?.classeId             || '',
-    cin:          eleve?.cin                  || '',
-    nomParent:    eleve?.nomParent            || '',
-    telParent:    eleve?.telParent            || '',
+    prenom: eleve?.utilisateur?.prenom || '',
+    nom: eleve?.utilisateur?.nom || '',
+    email: eleve?.utilisateur?.email || '',
+    telephone: eleve?.utilisateur?.telephone || '',
+    dateNaissance: eleve?.dateNaissance?.slice(0, 10) || '',
+    classeId: eleve?.classeId || '',
+    cin: eleve?.cin || '',
+    nomParent: eleve?.nomParent || '',
+    telParent: eleve?.telParent || '',
     centreId,
   })
   const [error, setError] = useState('')
 
   const { data: classesRes } = useQuery({
     queryKey: ['classes'],
-    queryFn:  () => classesApi.getAll()
+    queryFn: () => classesApi.getAll()
   })
   const classes = classesRes?.data?.data || []
 
@@ -45,11 +45,11 @@ function EleveModal({ eleve, onClose, centreId }) {
     mutationFn: isEdit
       ? (data) => elevesApi.update(eleve.id, data)
       : (data) => elevesApi.create(data),
-onSuccess: () => {
-  qc.invalidateQueries({ queryKey: ['eleves'] })
-  toast.success(isEdit ? 'Élève modifié' : 'Élève créé')
-  onClose()
-},
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['eleves'] })
+      toast.success(isEdit ? 'Élève modifié' : 'Élève créé')
+      onClose()
+    },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
   })
 
@@ -77,8 +77,8 @@ onSuccess: () => {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Prénom *"  value={form.prenom}    onChange={v => set('prenom', v)} />
-            <Field label="Nom *"     value={form.nom}       onChange={v => set('nom', v)} />
+            <Field label="Prénom *" value={form.prenom} onChange={v => set('prenom', v)} />
+            <Field label="Nom *" value={form.nom} onChange={v => set('nom', v)} />
           </div>
 
           {!isEdit && (
@@ -108,7 +108,7 @@ onSuccess: () => {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nom du parent" value={form.nomParent} onChange={v => set('nomParent', v)} />
-            <Field label="Tél. parent"   value={form.telParent} onChange={v => set('telParent', v)} />
+            <Field label="Tél. parent" value={form.telParent} onChange={v => set('telParent', v)} />
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -145,13 +145,13 @@ function Field({ label, value, onChange, type = 'text' }) {
 function ElevePanel({ eleve, onClose, onEdit }) {
   const qc = useQueryClient()
 
-const { mutate: changeStatut } = useMutation({
-  mutationFn: (statut) => elevesApi.updateStatut(eleve.id, statut),
-  onSuccess: () => {
-    qc.invalidateQueries({ queryKey: ['eleves'] })
-    toast.success('Statut mis à jour')
-  }
-})
+  const { mutate: changeStatut } = useMutation({
+    mutationFn: (statut) => elevesApi.updateStatut(eleve.id, statut),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['eleves'] })
+      toast.success('Statut mis à jour')
+    }
+  })
 
   if (!eleve) return null
 
@@ -175,21 +175,21 @@ const { mutate: changeStatut } = useMutation({
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <Section title="Infos scolaires">
-          <Row label="Filière"   value={eleve.classe?.filiere?.nom} />
-          <Row label="Classe"    value={eleve.classe?.nom} />
+          <Row label="Filière" value={eleve.classe?.filiere?.nom} />
+          <Row label="Classe" value={eleve.classe?.nom} />
           <Row label="Matricule" value={eleve.matricule} mono />
         </Section>
 
         <Section title="Contact">
-          <Row label="Email"     value={eleve.utilisateur.email} />
-          <Row label="Tél."      value={eleve.utilisateur.telephone} />
-          <Row label="Parent"    value={eleve.nomParent} />
+          <Row label="Email" value={eleve.utilisateur.email} />
+          <Row label="Tél." value={eleve.utilisateur.telephone} />
+          <Row label="Parent" value={eleve.nomParent} />
           <Row label="Tél. parent" value={eleve.telParent} />
         </Section>
 
         <Section title="Changer le statut">
           <div className="flex flex-wrap gap-1.5">
-            {['ACTIF','SUSPENDU','DIPLOME','ABANDONNE','RADIE'].map(s => (
+            {['ACTIF', 'SUSPENDU', 'DIPLOME', 'ABANDONNE', 'RADIE'].map(s => (
               <button key={s}
                 onClick={() => changeStatut(s)}
                 className={`text-xs px-2.5 py-1 rounded-full font-semibold border transition
@@ -244,21 +244,48 @@ export default function Eleves() {
   const { user } = useAuthStore?.() || {}
   const qc = useQueryClient()
 
-  const [search,   setSearch]   = useState('')
-  const [statut,   setStatut]   = useState('')
-  const [page,     setPage]     = useState(1)
-  const [modal,    setModal]    = useState(null) // null | 'create' | eleve object
+  const [search, setSearch] = useState('')
+  const [statut, setStatut] = useState('')
+  const [page, setPage] = useState(1)
+  const [modal, setModal] = useState(null) // null | 'create' | eleve object
   const [selected, setSelected] = useState(null)
+  const [classeId, setClasseId] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['eleves', { search, statut, page }],
-    queryFn:  () => elevesApi.getAll({ search, statut, page, limit: 15 }),
+    queryKey: ['eleves', { search, statut, classeId, page }],
+    queryFn: () => elevesApi.getAll({ search, statut, classeId, page, limit: 15 }),
     keepPreviousData: true
   })
 
-  const eleves    = data?.data?.data || []
-  const meta      = data?.data?.meta || {}
-  const centreId  = user?.centreId
+  const [printing, setPrinting] = useState(false)
+
+  const { data: allElevesRes, refetch: fetchAll } = useQuery({
+    queryFn: () => elevesApi.getAll({ search, statut, classeId, limit: 500 }),
+    queryKey: ['eleves-all-print', { search, statut, classeId }],
+    enabled: false
+  })
+  const allEleves = allElevesRes?.data?.data || []
+
+  const handlePrint = async () => {
+    setPrinting(true)
+    await fetchAll()
+    setTimeout(() => {
+      window.print()
+      setPrinting(false)
+    }, 300)
+  }
+
+  const { data: classesRes } = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => classesApi.getAll()
+  })
+
+
+  const classes = classesRes?.data?.data || []
+
+  const eleves = data?.data?.data || []
+  const meta = data?.data?.meta || {}
+  const centreId = user?.centreId
 
   return (
     <div className="space-y-4">
@@ -269,11 +296,19 @@ export default function Eleves() {
           <h1 className="text-xl font-bold text-gray-900">Élèves</h1>
           <p className="text-sm text-gray-500 mt-0.5">{meta.total || 0} élèves au total</p>
         </div>
-        <button
-          onClick={() => setModal('create')}
-          className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2">
-          ➕ Nouvel élève
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePrint}
+            disabled={printing}
+            className="no-print border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition disabled:opacity-40">
+            {printing ? '...' : '🖨️ Imprimer'}
+          </button>
+          <button
+            onClick={() => setModal('create')}
+            className="no-print bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            ➕ Nouvel élève
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -296,6 +331,14 @@ export default function Eleves() {
           <option value="DIPLOME">Diplômé</option>
           <option value="ABANDONNE">Abandonné</option>
           <option value="RADIE">Radié</option>
+        </select>
+        <select
+          value={classeId}
+          onChange={e => { setClasseId(e.target.value); setPage(1) }}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition"
+        >
+          <option value="">Toutes les classes</option>
+          {classes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
         </select>
       </div>
 
@@ -362,7 +405,7 @@ export default function Eleves() {
 
             {/* Pagination */}
             {meta.totalPages > 1 && (
-              <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+              <div className="no-print px-5 py-3 border-t border-gray-100 flex items-center justify-between">
                 <span className="text-xs text-gray-400">
                   Page {meta.page} sur {meta.totalPages} · {meta.total} résultats
                 </span>
@@ -384,8 +427,46 @@ export default function Eleves() {
             )}
           </>
         )}
-      </Card>
 
+      </Card>
+      {/* Print view — hidden on screen, shown on print */}
+      <div className="print-area hidden print:block">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Liste des élèves</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {classeId && `Classe: ${classes.find(c => c.id === classeId)?.nom} · `}
+            {search && `Recherche: "${search}" · `}
+            {statut && `Statut: ${statut} · `}
+            {allEleves.length} élèves · Imprimé le {new Date().toLocaleDateString('fr-FR')}
+          </p>
+        </div>
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b-2 border-gray-300">
+              <th className="text-left py-2 pr-4 text-xs font-bold text-gray-600 uppercase">#</th>
+              <th className="text-left py-2 pr-4 text-xs font-bold text-gray-600 uppercase">Nom et prénom</th>
+              <th className="text-left py-2 pr-4 text-xs font-bold text-gray-600 uppercase">Matricule</th>
+              <th className="text-left py-2 pr-4 text-xs font-bold text-gray-600 uppercase">Classe</th>
+              <th className="text-left py-2 pr-4 text-xs font-bold text-gray-600 uppercase">Filière</th>
+              <th className="text-left py-2 text-xs font-bold text-gray-600 uppercase">Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allEleves.map((e, i) => (
+              <tr key={e.id} className="border-b border-gray-100">
+                <td className="py-2 pr-4 text-gray-400 text-xs">{i + 1}</td>
+                <td className="py-2 pr-4 font-semibold text-gray-900">
+                  {e.utilisateur.prenom} {e.utilisateur.nom}
+                </td>
+                <td className="py-2 pr-4 font-mono text-xs text-gray-500">{e.matricule}</td>
+                <td className="py-2 pr-4 text-gray-700">{e.classe?.nom}</td>
+                <td className="py-2 pr-4 text-gray-500 text-xs">{e.classe?.filiere?.nom}</td>
+                <td className="py-2 text-xs font-semibold text-gray-700">{e.statut}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {/* Modals */}
       {(modal === 'create' || (modal && modal.id)) && (
         <EleveModal

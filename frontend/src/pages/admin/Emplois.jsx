@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { emploisApi }   from '../../api/emplois'
-import { classesApi }   from '../../api/classes'
-import { matieresApi }  from '../../api/matieres'
+import { emploisApi } from '../../api/emplois'
+import { classesApi } from '../../api/classes'
+import { matieresApi } from '../../api/matieres'
 import { personnelApi } from '../../api/personnel'
 import { toast } from 'sonner'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
-const JOURS = ['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI']
-const JOURS_LABELS = { LUNDI:'Lundi', MARDI:'Mardi', MERCREDI:'Mercredi', JEUDI:'Jeudi', VENDREDI:'Vendredi', SAMEDI:'Samedi' }
+const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
+const JOURS_LABELS = { LUNDI: 'Lundi', MARDI: 'Mardi', MERCREDI: 'Mercredi', JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi' }
 
 const COLORS = [
   'bg-blue-100 border-blue-200 text-blue-800',
@@ -24,25 +24,25 @@ function EmploiModal({ onClose, classeId }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     classeId,
-    matiereId:    '',
+    matiereId: '',
     professeurId: '',
-    jourSemaine:  'LUNDI',
-    heureDebut:   '08:00',
-    heureFin:     '10:00',
-    salle:        '',
+    jourSemaine: 'LUNDI',
+    heureDebut: '08:00',
+    heureFin: '10:00',
+    salle: '',
   })
   const [error, setError] = useState('')
-  const set = (k, v) => setForm(f => ({...f, [k]: v}))
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const { data: matieresRes }  = useQuery({ queryKey: ['matieres-all'],  queryFn: matieresApi.getAll })
+  const { data: matieresRes } = useQuery({ queryKey: ['matieres-all'], queryFn: matieresApi.getAll })
   const { data: personnelRes } = useQuery({ queryKey: ['personnel-all'], queryFn: personnelApi.getAll })
 
-  const matieres  = matieresRes?.data?.data  || []
+  const matieres = matieresRes?.data?.data || []
   const personnel = personnelRes?.data?.data || []
 
   const { mutate, isPending } = useMutation({
     mutationFn: emploisApi.create,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['emplois'] })
       toast.success('Séance ajoutée')
       onClose()
@@ -134,30 +134,30 @@ function EmploiModal({ onClose, classeId }) {
 export default function Emplois() {
   const qc = useQueryClient()
   const [classeId, setClasseId] = useState('')
-  const [modal,    setModal]    = useState(false)
-  const [confirm,  setConfirm]  = useState(null)
+  const [modal, setModal] = useState(false)
+  const [confirm, setConfirm] = useState(null)
 
   const { data: classesRes } = useQuery({
     queryKey: ['classes'],
-    queryFn:  classesApi.getAll
+    queryFn: classesApi.getAll
   })
 
   const { data, isLoading } = useQuery({
     queryKey: ['emplois', { classeId }],
-    queryFn:  () => emploisApi.getAll({ classeId }),
-    enabled:  !!classeId
+    queryFn: () => emploisApi.getAll({ classeId }),
+    enabled: !!classeId
   })
 
   const { mutate: remove } = useMutation({
     mutationFn: emploisApi.remove,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['emplois'] })
       toast.success('Séance supprimée')
     }
   })
 
   const classes = classesRes?.data?.data || []
-  const emplois = data?.data?.data       || []
+  const emplois = data?.data?.data || []
 
   const byJour = JOURS.reduce((acc, j) => {
     acc[j] = emplois.filter(e => e.jourSemaine === j)
@@ -178,13 +178,22 @@ export default function Emplois() {
           <h1 className="text-xl font-bold text-gray-900">Emplois du temps</h1>
           <p className="text-sm text-gray-500 mt-0.5">Planning hebdomadaire par classe</p>
         </div>
-        <button onClick={() => setModal(true)} disabled={!classeId}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-          ➕ Ajouter séance
-        </button>
+        <div className="flex gap-2">
+          {classeId && !isLoading && emplois.length > 0 && (
+            <button
+              onClick={() => window.print()}
+              className="no-print border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition">
+              🖨️ Imprimer
+            </button>
+          )}
+          <button onClick={() => setModal(true)} disabled={!classeId}
+            className="no-print bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            ➕ Ajouter séance
+          </button>
+        </div>
       </div>
 
-      <div>
+      <div className="no-print">
         <select value={classeId} onChange={e => setClasseId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-64">
           <option value="">Sélectionner une classe</option>
@@ -193,7 +202,7 @@ export default function Emplois() {
       </div>
 
       {!classeId && (
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-16 text-center text-gray-400">
+        <div className="no-print bg-gray-50 border border-gray-200 rounded-2xl p-16 text-center text-gray-400">
           <div className="text-4xl mb-3">🗓️</div>
           <div className="font-semibold">Sélectionnez une classe pour voir son emploi du temps</div>
         </div>
@@ -202,40 +211,53 @@ export default function Emplois() {
       {classeId && isLoading && <Spinner />}
 
       {classeId && !isLoading && (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-6 divide-x divide-gray-100">
-            {JOURS.map(jour => (
-              <div key={jour}>
-                <div className="bg-gray-50 border-b border-gray-100 px-3 py-3 text-center">
-                  <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">{JOURS_LABELS[jour]}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">{byJour[jour].length} séance{byJour[jour].length !== 1 ? 's' : ''}</div>
-                </div>
-                <div className="p-2 min-h-48 space-y-2">
-                  {byJour[jour]
-                    .sort((a, b) => a.heureDebut.localeCompare(b.heureDebut))
-                    .map(e => (
-                      <div key={e.id}
-                        className={`border rounded-xl p-2.5 text-xs group relative ${matiereColors[e.matiereId]}`}>
-                        <div className="font-bold leading-snug">{e.matiere?.nom}</div>
-                        <div className="mt-1 opacity-75">{e.heureDebut} – {e.heureFin}</div>
-                        <div className="opacity-75 truncate">
-                          {e.professeur?.utilisateur?.prenom} {e.professeur?.utilisateur?.nom}
+        <div className="print-area">
+          {/* Print header — only shows when printing */}
+          <div className="hidden print:block mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Emploi du temps</h2>
+            <p className="text-sm text-gray-600">
+              {classes.find(c => c.id === classeId)?.nom} — {classes.find(c => c.id === classeId)?.filiere?.nom}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Année scolaire 2025-2026 · Imprimé le {new Date().toLocaleDateString('fr-FR')}
+            </p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-6 divide-x divide-gray-100">
+              {JOURS.map(jour => (
+                <div key={jour}>
+                  <div className="bg-gray-50 border-b border-gray-100 px-3 py-3 text-center">
+                    <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">{JOURS_LABELS[jour]}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 no-print">{byJour[jour].length} séance{byJour[jour].length !== 1 ? 's' : ''}</div>
+                  </div>
+                  <div className="p-2 min-h-48 space-y-2">
+                    {byJour[jour]
+                      .sort((a, b) => a.heureDebut.localeCompare(b.heureDebut))
+                      .map(e => (
+                        <div key={e.id}
+                          className={`border rounded-xl p-2.5 text-xs group relative ${matiereColors[e.matiereId]}`}>
+                          <div className="font-bold leading-snug">{e.matiere?.nom}</div>
+                          <div className="mt-1 opacity-75">{e.heureDebut} – {e.heureFin}</div>
+                          <div className="opacity-75 truncate">
+                            {e.professeur?.utilisateur?.prenom} {e.professeur?.utilisateur?.nom}
+                          </div>
+                          {e.salle && <div className="opacity-60">📍 {e.salle}</div>}
+                          <button
+                            onClick={() => setConfirm(e)}
+                            className="no-print absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-700 text-sm">
+                            ✕
+                          </button>
                         </div>
-                        {e.salle && <div className="opacity-60">📍 {e.salle}</div>}
-                        <button
-                          onClick={() => setConfirm(e)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-700 text-sm">
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  }
-                  {byJour[jour].length === 0 && (
-                    <div className="text-center text-gray-300 text-xs py-4">—</div>
-                  )}
+                      ))
+                    }
+                    {byJour[jour].length === 0 && (
+                      <div className="text-center text-gray-300 text-xs py-4">—</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
