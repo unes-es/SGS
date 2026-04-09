@@ -9,3 +9,11 @@
   /* force colors in print */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* Mobile table scroll */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

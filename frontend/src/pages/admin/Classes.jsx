@@ -55,7 +55,7 @@ function ClasseModal({ classe, onClose, centreId }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">{isEdit ? 'Modifier classe' : 'Nouvelle classe'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -164,13 +164,13 @@ export default function Classes() {
       </div>
 
       {/* Filter */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 lg:gap-3 flex-wrap">
         <input
           type="text"
           placeholder="🔍 Nom de classe, filière..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500 transition"
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full sm:w-64 focus:outline-none focus:border-blue-500 transition"
         />
         <select value={filiereId} onChange={e => setFiliereId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">

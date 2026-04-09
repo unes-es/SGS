@@ -66,7 +66,7 @@ function FiliereModal({ filiere, onClose, centreId }) {
             <Field label="Code *" value={form.code} onChange={v => set('code', v)} placeholder="BTS-INFO" />
           </div>
           <Field label="Description" value={form.description} onChange={v => set('description', v)} />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field label="Durée (mois)" type="number" value={form.dureeMois} onChange={v => set('dureeMois', v)} />
             <Field label="Frais inscr. MAD" type="number" value={form.fraisInscription} onChange={v => set('fraisInscription', v)} />
             <Field label="Scolarité/mois *" type="number" value={form.fraisScolarite} onChange={v => set('fraisScolarite', v)} />
@@ -352,7 +352,7 @@ export default function Filieres() {
           placeholder="🔍 Nom, code, description..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500 transition"
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full sm:w-64 focus:outline-none focus:border-blue-500 transition"
         />
       </div>
       {isLoading ? <Spinner /> : (
@@ -371,7 +371,7 @@ export default function Filieres() {
               {f.description && (
                 <p className="text-gray-500 text-xs leading-relaxed mb-3 line-clamp-2">{f.description}</p>
               )}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-3 gap-1 lg:gap-2 mb-4">
                 <div className="bg-gray-50 rounded-lg p-2.5 text-center">
                   <div className="text-sm font-bold text-gray-900">{parseFloat(f.fraisScolarite).toLocaleString('fr-FR')}</div>
                   <div className="text-xs text-gray-400">MAD/mois</div>

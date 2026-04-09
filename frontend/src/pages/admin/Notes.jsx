@@ -305,7 +305,7 @@ export default function Notes() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 lg:gap-3 flex-wrap">
         <select value={classeId} onChange={e => { setClasseId(e.target.value); setPage(1) }}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
           <option value="">Toutes les classes</option>

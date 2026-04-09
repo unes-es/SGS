@@ -312,13 +312,13 @@ export default function Eleves() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 lg:gap-3 flex-wrap">
         <input
           type="text"
           placeholder="🔍 Nom, matricule, email..."
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500 transition"
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full sm:w-64 focus:outline-none focus:border-blue-500 transition"
         />
         <select
           value={statut}

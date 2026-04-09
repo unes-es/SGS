@@ -194,7 +194,7 @@ function BonModal({ onClose, caisses }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">🧾 Bon de caisse</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -329,7 +329,7 @@ export default function Caisse() {
       </div>
 
       {/* Caisses strip */}
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 lg:gap-3 flex-wrap">
         {caisses.map(c => (
           <div key={c.id}
             className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">

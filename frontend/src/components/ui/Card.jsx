@@ -7,7 +7,9 @@ export default function Card({ title, action, children, className = '' }) {
           {action && <div>{action}</div>}
         </div>
       )}
-      {children}
+      <div className="overflow-x-auto">
+        {children}
+      </div>
     </div>
   )
 }

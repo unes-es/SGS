@@ -92,7 +92,7 @@ function DocumentModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">📄 Générer un document</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -216,7 +216,7 @@ const downloadPdf = async (id, numeroSerie) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {TYPES_DOCS.map(t => (
           <button key={t}
             onClick={() => setType(type === t ? '' : t)}

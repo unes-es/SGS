@@ -46,7 +46,7 @@ function AbsenceModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">Saisir une absence</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -123,7 +123,7 @@ function JustifyModal({ absence, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-900">Justifier l'absence</h2>
           <button onClick={onClose} className="text-gray-400 text-xl">✕</button>
@@ -203,13 +203,13 @@ export default function Absences() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 lg:gap-4">
         <StatCard icon="📅" bg="bg-red-50"   label="Aujourd'hui"    value={stats?.today       ?? '—'} />
         <StatCard icon="📆" bg="bg-amber-50"  label="Cette semaine"  value={stats?.thisWeek    ?? '—'} />
         <StatCard icon="⚠️" bg="bg-rose-50"   label="Non justifiées" value={stats?.unjustified ?? '—'} />
       </div>
 
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-2 lg:gap-3 flex-wrap">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">Du</label>
           <input type="date" value={dateDebut}
