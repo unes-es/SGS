@@ -87,6 +87,18 @@ fastify.register(async function (f) {
 
 fastify.setErrorHandler((error, req, reply) => {
   const statusCode = error.statusCode || 500
+
+  if (statusCode >= 500) {
+    fastify.log.error({
+      err: error,
+      req: {
+        method: req.method,
+        url: req.url,
+        body: req.body
+      }
+    }, 'Internal server error')
+  }
+
   reply.status(statusCode).send({
     success: false,
     message: error.message || 'Internal Server Error'
