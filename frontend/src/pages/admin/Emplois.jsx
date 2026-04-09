@@ -4,7 +4,9 @@ import { emploisApi }   from '../../api/emplois'
 import { classesApi }   from '../../api/classes'
 import { matieresApi }  from '../../api/matieres'
 import { personnelApi } from '../../api/personnel'
+import { toast } from 'sonner'
 import Spinner from '../../components/ui/Spinner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 const JOURS = ['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI']
 const JOURS_LABELS = { LUNDI:'Lundi', MARDI:'Mardi', MERCREDI:'Mercredi', JEUDI:'Jeudi', VENDREDI:'Vendredi', SAMEDI:'Samedi' }
@@ -32,8 +34,8 @@ function EmploiModal({ onClose, classeId }) {
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
 
-  const { data: matieresRes }  = useQuery({ queryKey: ['matieres-all'],    queryFn: matieresApi.getAll })
-  const { data: personnelRes } = useQuery({ queryKey: ['personnel-all'],   queryFn: personnelApi.getAll })
+  const { data: matieresRes }  = useQuery({ queryKey: ['matieres-all'],  queryFn: matieresApi.getAll })
+  const { data: personnelRes } = useQuery({ queryKey: ['personnel-all'], queryFn: personnelApi.getAll })
 
   const matieres  = matieresRes?.data?.data  || []
   const personnel = personnelRes?.data?.data || []
@@ -42,6 +44,7 @@ function EmploiModal({ onClose, classeId }) {
     mutationFn: emploisApi.create,
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['emplois'] })
+      toast.success('Séance ajoutée')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -63,12 +66,10 @@ function EmploiModal({ onClose, classeId }) {
           <h2 className="font-bold text-gray-900">Ajouter une séance</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>
-
         <div className="p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-2">{error}</div>
           )}
-
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Jour *</label>
             <select value={form.jourSemaine} onChange={e => set('jourSemaine', e.target.value)}
@@ -76,7 +77,6 @@ function EmploiModal({ onClose, classeId }) {
               {JOURS.map(j => <option key={j} value={j}>{JOURS_LABELS[j]}</option>)}
             </select>
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Heure début</label>
@@ -89,7 +89,6 @@ function EmploiModal({ onClose, classeId }) {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             </div>
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Matière *</label>
             <select value={form.matiereId} onChange={e => set('matiereId', e.target.value)}
@@ -98,7 +97,6 @@ function EmploiModal({ onClose, classeId }) {
               {matieres.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Professeur *</label>
             <select value={form.professeurId} onChange={e => set('professeurId', e.target.value)}
@@ -111,14 +109,12 @@ function EmploiModal({ onClose, classeId }) {
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Salle</label>
             <input type="text" value={form.salle} onChange={e => set('salle', e.target.value)}
               placeholder="Salle A1, Labo..."
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
-
           <div className="flex gap-3 pt-2">
             <button onClick={onClose}
               className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
@@ -139,6 +135,7 @@ export default function Emplois() {
   const qc = useQueryClient()
   const [classeId, setClasseId] = useState('')
   const [modal,    setModal]    = useState(false)
+  const [confirm,  setConfirm]  = useState(null)
 
   const { data: classesRes } = useQuery({
     queryKey: ['classes'],
@@ -153,21 +150,22 @@ export default function Emplois() {
 
   const { mutate: remove } = useMutation({
     mutationFn: emploisApi.remove,
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['emplois'] })
+    onSuccess:  () => {
+      qc.invalidateQueries({ queryKey: ['emplois'] })
+      toast.success('Séance supprimée')
+    }
   })
 
   const classes = classesRes?.data?.data || []
   const emplois = data?.data?.data       || []
 
-  // group by jour
   const byJour = JOURS.reduce((acc, j) => {
     acc[j] = emplois.filter(e => e.jourSemaine === j)
     return acc
   }, {})
 
-  // unique matieres for color mapping
   const matiereColors = {}
-  emplois.forEach((e, i) => {
+  emplois.forEach((e) => {
     if (!matiereColors[e.matiereId]) {
       matiereColors[e.matiereId] = COLORS[Object.keys(matiereColors).length % COLORS.length]
     }
@@ -180,15 +178,12 @@ export default function Emplois() {
           <h1 className="text-xl font-bold text-gray-900">Emplois du temps</h1>
           <p className="text-sm text-gray-500 mt-0.5">Planning hebdomadaire par classe</p>
         </div>
-        <button
-          onClick={() => setModal(true)}
-          disabled={!classeId}
+        <button onClick={() => setModal(true)} disabled={!classeId}
           className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
           ➕ Ajouter séance
         </button>
       </div>
 
-      {/* Class selector */}
       <div>
         <select value={classeId} onChange={e => setClasseId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-64">
@@ -206,16 +201,13 @@ export default function Emplois() {
 
       {classeId && isLoading && <Spinner />}
 
-      {/* Schedule grid */}
       {classeId && !isLoading && (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="grid grid-cols-6 divide-x divide-gray-100">
             {JOURS.map(jour => (
               <div key={jour}>
                 <div className="bg-gray-50 border-b border-gray-100 px-3 py-3 text-center">
-                  <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    {JOURS_LABELS[jour]}
-                  </div>
+                  <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">{JOURS_LABELS[jour]}</div>
                   <div className="text-xs text-gray-400 mt-0.5">{byJour[jour].length} séance{byJour[jour].length !== 1 ? 's' : ''}</div>
                 </div>
                 <div className="p-2 min-h-48 space-y-2">
@@ -225,16 +217,13 @@ export default function Emplois() {
                       <div key={e.id}
                         className={`border rounded-xl p-2.5 text-xs group relative ${matiereColors[e.matiereId]}`}>
                         <div className="font-bold leading-snug">{e.matiere?.nom}</div>
-                        <div className="mt-1 opacity-75">
-                          {e.heureDebut} – {e.heureFin}
-                        </div>
+                        <div className="mt-1 opacity-75">{e.heureDebut} – {e.heureFin}</div>
                         <div className="opacity-75 truncate">
                           {e.professeur?.utilisateur?.prenom} {e.professeur?.utilisateur?.nom}
                         </div>
                         {e.salle && <div className="opacity-60">📍 {e.salle}</div>}
-
                         <button
-                          onClick={() => { if (confirm('Supprimer cette séance ?')) remove(e.id) }}
+                          onClick={() => setConfirm(e)}
                           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition text-red-500 hover:text-red-700 text-sm">
                           ✕
                         </button>
@@ -254,6 +243,14 @@ export default function Emplois() {
       {modal && classeId && (
         <EmploiModal classeId={classeId} onClose={() => setModal(false)} />
       )}
+
+      <ConfirmDialog
+        isOpen={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => remove(confirm.id)}
+        title="Supprimer la séance"
+        message={`Supprimer la séance de "${confirm?.matiere?.nom}" (${confirm?.jourSemaine} ${confirm?.heureDebut}–${confirm?.heureFin}) ?`}
+      />
     </div>
   )
 }

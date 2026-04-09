@@ -5,7 +5,7 @@ module.exports = {
     const { eleveId, type, page, limit } = req.query
     return service.getAll({
       eleveId, type,
-      page:  parseInt(page)  || 1,
+      page: parseInt(page) || 1,
       limit: parseInt(limit) || 20
     })
   },
@@ -26,5 +26,16 @@ module.exports = {
   async remove(req, reply) {
     await service.remove(req.params.id)
     return { message: 'Document supprimé' }
-  }
+  },
+  async generatePdf(req, reply) {
+    try {
+      const { pdf, filename } = await service.generatePdf(req.params.id)
+      reply.header('Content-Type', 'application/pdf')
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+      return reply.send(pdf)
+    } catch (err) {
+      console.error('PDF generation error:', err)
+      return reply.status(500).send({ message: err.message || 'Erreur PDF' })
+    }
+  },
 }

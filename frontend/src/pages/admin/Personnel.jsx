@@ -1,37 +1,39 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { personnelApi } from '../../api/personnel'
-import Card     from '../../components/ui/Card'
-import Badge    from '../../components/ui/Badge'
-import Spinner  from '../../components/ui/Spinner'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
+import { toast } from 'sonner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
 const CONTRAT_COLORS = {
-  PERMANENT:     'blue',
-  VACATAIRE:     'violet',
+  PERMANENT: 'blue',
+  VACATAIRE: 'violet',
   ADMINISTRATIF: 'teal',
-  STAGIAIRE:     'amber',
+  STAGIAIRE: 'amber',
 }
 
 const TYPES_CONTRAT = ['PERMANENT', 'VACATAIRE', 'ADMINISTRATIF', 'STAGIAIRE']
 
 // ── MODAL ──────────────────────────────────────────
 function PersonnelModal({ membre, onClose }) {
-  const qc     = useQueryClient()
+  const qc = useQueryClient()
   const isEdit = !!membre
 
   const [form, setForm] = useState({
-    prenom:       membre?.utilisateur?.prenom    || '',
-    nom:          membre?.utilisateur?.nom       || '',
-    email:        membre?.utilisateur?.email     || '',
-    telephone:    membre?.utilisateur?.telephone || '',
-    typeContrat:  membre?.typeContrat            || 'PERMANENT',
-    poste:        membre?.poste                  || '',
+    prenom: membre?.utilisateur?.prenom || '',
+    nom: membre?.utilisateur?.nom || '',
+    email: membre?.utilisateur?.email || '',
+    telephone: membre?.utilisateur?.telephone || '',
+    typeContrat: membre?.typeContrat || 'PERMANENT',
+    poste: membre?.poste || '',
     dateEmbauche: membre?.dateEmbauche?.slice(0, 10) || '',
-    salaireBase:  membre?.salaireBase            || '',
-    tauxHoraire:  membre?.tauxHoraire            || '',
-    cin:          membre?.cin                    || '',
-    rib:          membre?.rib                    || '',
+    salaireBase: membre?.salaireBase || '',
+    tauxHoraire: membre?.tauxHoraire || '',
+    cin: membre?.cin || '',
+    rib: membre?.rib || '',
   })
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -42,6 +44,7 @@ function PersonnelModal({ membre, onClose }) {
       : (data) => personnelApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['personnel'] })
+      toast.success(isEdit ? 'Membre modifié' : 'Membre créé')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -78,8 +81,8 @@ function PersonnelModal({ membre, onClose }) {
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Prénom *"  value={form.prenom}    onChange={v => set('prenom', v)} />
-            <Field label="Nom *"     value={form.nom}       onChange={v => set('nom', v)} />
+            <Field label="Prénom *" value={form.prenom} onChange={v => set('prenom', v)} />
+            <Field label="Nom *" value={form.nom} onChange={v => set('nom', v)} />
           </div>
 
           {!isEdit && (
@@ -103,7 +106,7 @@ function PersonnelModal({ membre, onClose }) {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Salaire de base (MAD)" type="number" value={form.salaireBase} onChange={v => set('salaireBase', v)} />
-            <Field label="Taux horaire (MAD/h)"  type="number" value={form.tauxHoraire} onChange={v => set('tauxHoraire', v)} />
+            <Field label="Taux horaire (MAD/h)" type="number" value={form.tauxHoraire} onChange={v => set('tauxHoraire', v)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -141,17 +144,19 @@ function Field({ label, value, onChange, type = 'text' }) {
 // ── DETAIL PANEL ───────────────────────────────────
 function PersonnelPanel({ membre, onClose, onEdit }) {
   const qc = useQueryClient()
+  const [confirm, setConfirm] = useState(false)
 
   const { data } = useQuery({
     queryKey: ['personnel', membre.id],
-    queryFn:  () => personnelApi.getById(membre.id)
+    queryFn: () => personnelApi.getById(membre.id)
   })
   const detail = data?.data?.data || membre
 
   const { mutate: deactivate } = useMutation({
     mutationFn: () => personnelApi.deactivate(membre.id),
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['personnel'] })
+      toast.success('Membre désactivé')
       onClose()
     }
   })
@@ -175,19 +180,19 @@ function PersonnelPanel({ membre, onClose, onEdit }) {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <Section title="Contact">
-          <Row label="Email"     value={detail.utilisateur?.email} />
+          <Row label="Email" value={detail.utilisateur?.email} />
           <Row label="Téléphone" value={detail.utilisateur?.telephone} />
-          <Row label="CIN"       value={detail.cin} />
+          <Row label="CIN" value={detail.cin} />
         </Section>
 
         <Section title="Contrat">
-          <Row label="Type"         value={detail.typeContrat} />
+          <Row label="Type" value={detail.typeContrat} />
           <Row label="Date embauche" value={detail.dateEmbauche
             ? new Date(detail.dateEmbauche).toLocaleDateString('fr-FR')
             : '—'} />
-          <Row label="Salaire base"  value={detail.salaireBase ? `${detail.salaireBase} MAD` : '—'} />
-          <Row label="Taux horaire"  value={detail.tauxHoraire ? `${detail.tauxHoraire} MAD/h` : '—'} />
-          <Row label="RIB"           value={detail.rib} />
+          <Row label="Salaire base" value={detail.salaireBase ? `${detail.salaireBase} MAD` : '—'} />
+          <Row label="Taux horaire" value={detail.tauxHoraire ? `${detail.tauxHoraire} MAD/h` : '—'} />
+          <Row label="RIB" value={detail.rib} />
         </Section>
 
         {detail.salaires?.length > 0 && (
@@ -211,11 +216,18 @@ function PersonnelPanel({ membre, onClose, onEdit }) {
           ✏️ Modifier
         </button>
         <button
-          onClick={() => { if (confirm('Désactiver ce membre ?')) deactivate() }}
+          onClick={() => setConfirm(true)}
           className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold rounded-lg py-2 transition">
           🚫 Désactiver
         </button>
       </div>
+      <ConfirmDialog
+        isOpen={confirm}
+        onClose={() => setConfirm(false)}
+        onConfirm={() => deactivate()}
+        title="Désactiver le membre"
+        message={`Désactiver ${detail.utilisateur?.prenom} ${detail.utilisateur?.nom} ? Il n'aura plus accès au système.`}
+      />
     </div>
   )
 }
@@ -241,22 +253,32 @@ function Row({ label, value }) {
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Personnel() {
   const qc = useQueryClient()
-  const [modal,    setModal]    = useState(null)
+  const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [typeContrat, setTypeContrat] = useState('')
 
+  const [search, setSearch] = useState('')
+
+  // update query
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['personnel', { typeContrat }],
-    queryFn:  () => personnelApi.getAll({ typeContrat }),
+    queryKey: ['personnel', { typeContrat, search, page }],
+    queryFn: () => personnelApi.getAll({ typeContrat, search, page, limit: 15 }),
+    keepPreviousData: true
   })
+
+  const meta = data?.data?.meta || {}
 
   const membres = data?.data?.data || []
 
   const counts = {
-    total:     membres.length,
+    total: membres.length,
     permanent: membres.filter(m => m.typeContrat === 'PERMANENT').length,
     vacataire: membres.filter(m => m.typeContrat === 'VACATAIRE').length,
   }
+
+
 
   return (
     <div className="space-y-4">
@@ -275,14 +297,22 @@ export default function Personnel() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard icon="👥"    bg="bg-blue-50"   label="Total"      value={counts.total} />
-        <StatCard icon="📋"    bg="bg-teal-50"   label="Permanents" value={counts.permanent} />
-        <StatCard icon="🕐"    bg="bg-violet-50" label="Vacataires" value={counts.vacataire} />
+        <StatCard icon="👥" bg="bg-blue-50" label="Total" value={counts.total} />
+        <StatCard icon="📋" bg="bg-teal-50" label="Permanents" value={counts.permanent} />
+        <StatCard icon="🕐" bg="bg-violet-50" label="Vacataires" value={counts.vacataire} />
       </div>
 
       {/* Filter */}
-      <div className="flex gap-3">
-        <select value={typeContrat} onChange={e => setTypeContrat(e.target.value)}
+      <div className="flex gap-3 flex-wrap">
+        <input
+          type="text"
+          placeholder="🔍 Nom, poste, email..."
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:border-blue-500 transition"
+        />
+        <select value={typeContrat}
+          onChange={e => { setTypeContrat(e.target.value); setPage(1) }}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
           <option value="">Tous les contrats</option>
           {TYPES_CONTRAT.map(t => <option key={t} value={t}>{t}</option>)}
@@ -341,13 +371,37 @@ export default function Personnel() {
               ))}
               {!membres.length && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-gray-400">
-                    Aucun membre du personnel
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="text-4xl mb-3">👥</div>
+                    <div className="font-semibold text-gray-500">
+                      {search || typeContrat ? 'Aucun résultat pour cette recherche' : 'Aucun membre du personnel'}
+                    </div>
+                    {!search && !typeContrat && (
+                      <div className="text-sm text-gray-400 mt-1">Cliquez sur "Nouveau membre" pour commencer</div>
+                    )}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+
+        )}
+        {meta.totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              Page {meta.page} sur {meta.totalPages} · {meta.total} membres
+            </span>
+            <div className="flex gap-1">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition">
+                ← Préc.
+              </button>
+              <button onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition">
+                Suiv. →
+              </button>
+            </div>
+          </div>
         )}
       </Card>
 

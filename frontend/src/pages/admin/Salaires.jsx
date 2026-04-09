@@ -1,29 +1,30 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { salairesApi }  from '../../api/salaires'
+import { salairesApi } from '../../api/salaires'
 import { personnelApi } from '../../api/personnel'
-import Card     from '../../components/ui/Card'
-import Badge    from '../../components/ui/Badge'
-import Spinner  from '../../components/ui/Spinner'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
+import { toast } from 'sonner'
 
 const MODES = ['VIREMENT', 'ESPECES', 'CHEQUE']
-const MOIS_LABELS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
+const MOIS_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 
 function SalaireModal({ onClose }) {
-  const qc  = useQueryClient()
+  const qc = useQueryClient()
   const now = new Date()
   const [form, setForm] = useState({
-    personnelId:  '',
-    mois:         now.getMonth() + 1,
-    annee:        now.getFullYear(),
-    montantBrut:  '',
-    deductions:   0,
-    montantNet:   '',
+    personnelId: '',
+    mois: now.getMonth() + 1,
+    annee: now.getFullYear(),
+    montantBrut: '',
+    deductions: 0,
+    montantNet: '',
     modePaiement: 'VIREMENT',
   })
   const [error, setError] = useState('')
-  const set = (k, v) => setForm(f => ({...f, [k]: v}))
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   // auto-compute net
   const handleBrutChange = (v) => {
@@ -37,15 +38,16 @@ function SalaireModal({ onClose }) {
 
   const { data: personnelRes } = useQuery({
     queryKey: ['personnel-all'],
-    queryFn:  () => personnelApi.getAll()
+    queryFn: () => personnelApi.getAll()
   })
   const personnel = personnelRes?.data?.data || []
 
   const { mutate, isPending } = useMutation({
     mutationFn: salairesApi.create,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salaires'] })
       qc.invalidateQueries({ queryKey: ['salaires-stats'] })
+      toast.success('Salaire créé')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -90,7 +92,7 @@ function SalaireModal({ onClose }) {
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mois</label>
               <select value={form.mois} onChange={e => set('mois', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-                {MOIS_LABELS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                {MOIS_LABELS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
@@ -151,11 +153,12 @@ function PayerModal({ salaire, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => salairesApi.payer(salaire.id, form),
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salaires'] })
       qc.invalidateQueries({ queryKey: ['salaires-stats'] })
+      toast.success('Salaire marqué comme payé')
       onClose()
-    }
+    },
   })
 
   return (
@@ -177,7 +180,7 @@ function PayerModal({ salaire, onClose }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mode de paiement</label>
-            <select value={form.modePaiement} onChange={e => setForm(f => ({...f, modePaiement: e.target.value}))}
+            <select value={form.modePaiement} onChange={e => setForm(f => ({ ...f, modePaiement: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
               {MODES.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -186,7 +189,7 @@ function PayerModal({ salaire, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Date de paiement</label>
             <input type="date" value={form.datePaiement}
-              onChange={e => setForm(f => ({...f, datePaiement: e.target.value}))}
+              onChange={e => setForm(f => ({ ...f, datePaiement: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
           </div>
 
@@ -208,24 +211,30 @@ function PayerModal({ salaire, onClose }) {
 
 export default function Salaires() {
   const now = new Date()
-  const [modal,  setModal]  = useState(null)
-  const [payer,  setPayer]  = useState(null)
-  const [mois,   setMois]   = useState(now.getMonth() + 1)
-  const [annee,  setAnnee]  = useState(now.getFullYear())
+  const [modal, setModal] = useState(null)
+  const [payer, setPayer] = useState(null)
+  const [mois, setMois] = useState(now.getMonth() + 1)
+  const [annee, setAnnee] = useState(now.getFullYear())
   const [statut, setStatut] = useState('')
+  const [search, setSearch] = useState('')
 
   const { data: statsRes } = useQuery({
     queryKey: ['salaires-stats', { mois, annee }],
-    queryFn:  () => salairesApi.getStats({ mois, annee })
+    queryFn: () => salairesApi.getStats({ mois, annee })
   })
 
   const { data, isLoading } = useQuery({
     queryKey: ['salaires', { mois, annee, statut }],
-    queryFn:  () => salairesApi.getAll({ mois, annee, statut })
+    queryFn: () => salairesApi.getAll({ mois, annee, statut })
   })
 
-  const stats    = statsRes?.data?.data
-  const salaires = data?.data?.data || []
+  const stats = statsRes?.data?.data
+  const salaires = (data?.data?.data || []).filter(s =>
+    !search ||
+    s.personnel.utilisateur.prenom.toLowerCase().includes(search.toLowerCase()) ||
+    s.personnel.utilisateur.nom.toLowerCase().includes(search.toLowerCase()) ||
+    s.personnel.poste.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="space-y-4">
@@ -242,16 +251,23 @@ export default function Salaires() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard icon="💰" bg="bg-blue-50"    label="Total masse salariale" value={`${(stats?.total || 0).toLocaleString('fr-FR')} MAD`} />
-        <StatCard icon="✅" bg="bg-emerald-50" label="Payés"                 value={`${(stats?.paye  || 0).toLocaleString('fr-FR')} MAD`} />
-        <StatCard icon="⏳" bg="bg-amber-50"   label="En attente"            value={`${(stats?.enAttente || 0).toLocaleString('fr-FR')} MAD`} />
+        <StatCard icon="💰" bg="bg-blue-50" label="Total masse salariale" value={`${(stats?.total || 0).toLocaleString('fr-FR')} MAD`} />
+        <StatCard icon="✅" bg="bg-emerald-50" label="Payés" value={`${(stats?.paye || 0).toLocaleString('fr-FR')} MAD`} />
+        <StatCard icon="⏳" bg="bg-amber-50" label="En attente" value={`${(stats?.enAttente || 0).toLocaleString('fr-FR')} MAD`} />
       </div>
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
+        <input
+          type="text"
+          placeholder="🔍 Nom, poste..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:border-blue-500 transition"
+        />
         <select value={mois} onChange={e => setMois(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-          {MOIS_LABELS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          {MOIS_LABELS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
         </select>
         <input type="number" value={annee} onChange={e => setAnnee(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:border-blue-500" />
@@ -321,8 +337,16 @@ export default function Salaires() {
               ))}
               {!salaires.length && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
-                    Aucun salaire pour cette période
+                  <td colSpan={7} className="px-5 py-16 text-center">
+                    <div className="text-4xl mb-3">💰</div>
+                    <div className="font-semibold text-gray-500">
+                      {search ? 'Aucun résultat' : 'Aucun salaire pour cette période'}
+                    </div>
+                    {!search && (
+                      <div className="text-sm text-gray-400 mt-1">
+                        Cliquez sur "Nouveau salaire" pour en créer un
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}

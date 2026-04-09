@@ -1,22 +1,41 @@
 const prisma = require('../../config/db')
 const bcrypt = require('bcrypt')
 
-async function getAll({ centreId, typeContrat, isActive = true }) {
-  return prisma.personnel.findMany({
-    where: {
-      centreId,
-      isActive,
-      ...(typeContrat && { typeContrat })
-    },
-    include: {
-      utilisateur: {
-        select: { prenom: true, nom: true, email: true, telephone: true, photoUrl: true }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
-}
+async function getAll({ centreId, typeContrat, isActive = true, search, page = 1, limit = 15 }) {
+  const skip = (page - 1) * limit
 
+  const where = {
+    centreId,
+    isActive,
+    ...(typeContrat && { typeContrat }),
+    ...(search && {
+      OR: [
+        { utilisateur: { nom:    { contains: search, mode: 'insensitive' } } },
+        { utilisateur: { prenom: { contains: search, mode: 'insensitive' } } },
+        { utilisateur: { email:  { contains: search, mode: 'insensitive' } } },
+        { poste:        { contains: search, mode: 'insensitive' } },
+        { cin:          { contains: search, mode: 'insensitive' } },
+      ]
+    })
+  }
+
+  const [total, membres] = await Promise.all([
+    prisma.personnel.count({ where }),
+    prisma.personnel.findMany({
+      where, skip, take: limit,
+      include: {
+        utilisateur: { select: { prenom: true, nom: true, email: true, telephone: true } },
+        salaires: { orderBy: [{ annee: 'desc' }, { mois: 'desc' }], take: 3 }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  ])
+
+  return {
+    data: membres,
+    meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+  }
+}
 async function getById(id) {
   const personnel = await prisma.personnel.findUnique({
     where: { id },

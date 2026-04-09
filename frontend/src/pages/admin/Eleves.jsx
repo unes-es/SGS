@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore'
 import Card    from '../../components/ui/Card'
 import Badge   from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
+import { toast } from 'sonner'
 
 const STATUT_COLORS = {
   ACTIF:     'green',
@@ -44,10 +45,11 @@ function EleveModal({ eleve, onClose, centreId }) {
     mutationFn: isEdit
       ? (data) => elevesApi.update(eleve.id, data)
       : (data) => elevesApi.create(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['eleves'] })
-      onClose()
-    },
+onSuccess: () => {
+  qc.invalidateQueries({ queryKey: ['eleves'] })
+  toast.success(isEdit ? 'Élève modifié' : 'Élève créé')
+  onClose()
+},
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
   })
 
@@ -143,10 +145,13 @@ function Field({ label, value, onChange, type = 'text' }) {
 function ElevePanel({ eleve, onClose, onEdit }) {
   const qc = useQueryClient()
 
-  const { mutate: changeStatut } = useMutation({
-    mutationFn: (statut) => elevesApi.updateStatut(eleve.id, statut),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['eleves'] })
-  })
+const { mutate: changeStatut } = useMutation({
+  mutationFn: (statut) => elevesApi.updateStatut(eleve.id, statut),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['eleves'] })
+    toast.success('Statut mis à jour')
+  }
+})
 
   if (!eleve) return null
 

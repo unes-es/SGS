@@ -1,46 +1,48 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { notesApi }    from '../../api/notes'
-import { elevesApi }   from '../../api/eleves'
+import { notesApi } from '../../api/notes'
+import { elevesApi } from '../../api/eleves'
 import { matieresApi } from '../../api/matieres'
-import { classesApi }  from '../../api/classes'
-import Card     from '../../components/ui/Card'
-import Badge    from '../../components/ui/Badge'
-import Spinner  from '../../components/ui/Spinner'
+import { classesApi } from '../../api/classes'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
+import { toast } from 'sonner'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
-const PERIODES   = ['T1', 'T2', 'T3']
+const PERIODES = ['T1', 'T2', 'T3']
 const TYPE_EVALS = ['CONTROLE', 'EXAMEN', 'TP', 'PROJET']
 
 const TYPE_COLORS = {
   CONTROLE: 'blue',
-  EXAMEN:   'violet',
-  TP:       'teal',
-  PROJET:   'amber',
+  EXAMEN: 'violet',
+  TP: 'teal',
+  PROJET: 'amber',
 }
 
 // ── NOTE MODAL ─────────────────────────────────────
 function NoteModal({ note, onClose }) {
-  const qc     = useQueryClient()
+  const qc = useQueryClient()
   const isEdit = !!note
 
   const [form, setForm] = useState({
-    eleveId:   note?.eleveId   || '',
+    eleveId: note?.eleveId || '',
     matiereId: note?.matiereId || '',
-    periode:   note?.periode   || 'T1',
-    typeEval:  note?.typeEval  || 'CONTROLE',
-    note:      note?.note      || '',
-    noteMax:   note?.noteMax   || 20,
+    periode: note?.periode || 'T1',
+    typeEval: note?.typeEval || 'CONTROLE',
+    note: note?.note || '',
+    noteMax: note?.noteMax || 20,
     appreciation: note?.appreciation || '',
-    dateEval:  note?.dateEval?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+    dateEval: note?.dateEval?.slice(0, 10) || new Date().toISOString().slice(0, 10),
   })
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const { data: elevesRes }   = useQuery({ queryKey: ['eleves-all'],   queryFn: () => elevesApi.getAll({ limit: 200 }) })
+  const { data: elevesRes } = useQuery({ queryKey: ['eleves-all'], queryFn: () => elevesApi.getAll({ limit: 200 }) })
   const { data: matieresRes } = useQuery({ queryKey: ['matieres-all'], queryFn: matieresApi.getAll })
 
-  const eleves   = elevesRes?.data?.data   || []
+  const eleves = elevesRes?.data?.data || []
   const matieres = matieresRes?.data?.data || []
 
   const { mutate, isPending } = useMutation({
@@ -49,6 +51,7 @@ function NoteModal({ note, onClose }) {
       : (data) => notesApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notes'] })
+      toast.success(isEdit ? 'Note modifiée' : 'Note saisie')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -173,8 +176,8 @@ function NoteModal({ note, onClose }) {
 function MoyennePanel({ classeId, periode, onClose }) {
   const { data, isLoading } = useQuery({
     queryKey: ['moyenne-classe', classeId, periode],
-    queryFn:  () => notesApi.getMoyenneClasse(classeId, periode),
-    enabled:  !!classeId && !!periode
+    queryFn: () => notesApi.getMoyenneClasse(classeId, periode),
+    enabled: !!classeId && !!periode
   })
 
   const results = data?.data?.data || []
@@ -208,7 +211,7 @@ function MoyennePanel({ classeId, periode, onClose }) {
                   <tr key={r.eleveId} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <span className={`font-bold text-lg ${r.rang <= 3 ? 'text-amber-500' : 'text-gray-400'}`}>
-                        {r.rang <= 3 ? ['🥇','🥈','🥉'][r.rang - 1] : `#${r.rang}`}
+                        {r.rang <= 3 ? ['🥇', '🥈', '🥉'][r.rang - 1] : `#${r.rang}`}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -238,7 +241,7 @@ function MoyennePanel({ classeId, periode, onClose }) {
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Notes() {
   const qc = useQueryClient()
-  const [modal,   setModal]   = useState(null)
+  const [modal, setModal] = useState(null)
   const [eleveId, setEleveId] = useState('')
   const [periode, setPeriode] = useState('')
   const [classeId, setClasseId] = useState('')
@@ -247,29 +250,34 @@ export default function Notes() {
 
   const { data: classesRes } = useQuery({
     queryKey: ['classes'],
-    queryFn:  classesApi.getAll
+    queryFn: classesApi.getAll
   })
   const classes = classesRes?.data?.data || []
 
   const { data, isLoading } = useQuery({
     queryKey: ['notes', { eleveId, periode, classeId, page }],
-    queryFn:  () => notesApi.getAll({ eleveId, periode, classeId, page, limit: 15 }),
+    queryFn: () => notesApi.getAll({ eleveId, periode, classeId, page, limit: 15 }),
     keepPreviousData: true
   })
 
+  const [confirm, setConfirm] = useState(null)
+
   const { mutate: remove } = useMutation({
     mutationFn: notesApi.remove,
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['notes'] })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notes'] })
+      toast.success('Note supprimée')
+    }
   })
 
   const notes = data?.data?.data || []
-  const meta  = data?.data?.meta || {}
+  const meta = data?.data?.meta || {}
 
   const noteColor = (n, max) => {
     const pct = n / max
-    if (pct >= 0.8)  return 'text-emerald-600'
-    if (pct >= 0.6)  return 'text-blue-600'
-    if (pct >= 0.5)  return 'text-amber-600'
+    if (pct >= 0.8) return 'text-emerald-600'
+    if (pct >= 0.6) return 'text-blue-600'
+    if (pct >= 0.5) return 'text-amber-600'
     return 'text-red-500'
   }
 
@@ -358,7 +366,7 @@ export default function Notes() {
                       <div className="flex gap-2">
                         <button onClick={() => setModal(n)}
                           className="text-xs text-gray-400 hover:text-blue-600 transition">✏️</button>
-                        <button onClick={() => { if (confirm('Supprimer cette note ?')) remove(n.id) }}
+                        <button onClick={() => setConfirm(n)}
                           className="text-xs text-gray-400 hover:text-red-500 transition">🗑</button>
                       </div>
                     </td>
@@ -404,6 +412,13 @@ export default function Notes() {
           onClose={() => setShowMoyenne(false)}
         />
       )}
+      <ConfirmDialog
+        isOpen={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => remove(confirm.id)}
+        title="Supprimer la note"
+        message={`Supprimer la note de ${confirm?.eleve?.utilisateur?.prenom} ${confirm?.eleve?.utilisateur?.nom} en ${confirm?.matiere?.nom} (${confirm?.note}/${confirm?.noteMax}) ?`}
+      />
     </div>
   )
 }

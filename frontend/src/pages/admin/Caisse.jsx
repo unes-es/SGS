@@ -2,27 +2,27 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { caisseApi } from '../../api/caisse'
 import { elevesApi } from '../../api/eleves'
-import Card     from '../../components/ui/Card'
-import Badge    from '../../components/ui/Badge'
-import Spinner  from '../../components/ui/Spinner'
+import Card from '../../components/ui/Card'
+import Badge from '../../components/ui/Badge'
+import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
 
-const MODES_PAIEMENT  = ['ESPECES', 'VIREMENT', 'CHEQUE', 'EN_LIGNE']
-const TYPES_FRAIS     = ['INSCRIPTION', 'SCOLARITE', 'AUTRE']
-const MODE_COLORS     = { ESPECES: 'green', VIREMENT: 'blue', CHEQUE: 'amber', EN_LIGNE: 'violet' }
-const FRAIS_COLORS    = { INSCRIPTION: 'blue', SCOLARITE: 'teal', AUTRE: 'gray' }
+const MODES_PAIEMENT = ['ESPECES', 'VIREMENT', 'CHEQUE', 'EN_LIGNE']
+const TYPES_FRAIS = ['INSCRIPTION', 'SCOLARITE', 'AUTRE']
+const MODE_COLORS = { ESPECES: 'green', VIREMENT: 'blue', CHEQUE: 'amber', EN_LIGNE: 'violet' }
+const FRAIS_COLORS = { INSCRIPTION: 'blue', SCOLARITE: 'teal', AUTRE: 'gray' }
 
 // ── PAIEMENT MODAL ─────────────────────────────────
 function PaiementModal({ onClose, caisses }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
-    eleveId:      '',
-    caisseId:     caisses[0]?.id || '',
-    typeFrais:    'SCOLARITE',
-    montant:      '',
+    eleveId: '',
+    caisseId: caisses[0]?.id || '',
+    typeFrais: 'SCOLARITE',
+    montant: '',
     modePaiement: 'ESPECES',
     datePaiement: new Date().toISOString().slice(0, 10),
-    periodeMois:  new Date().getMonth() + 1,
+    periodeMois: new Date().getMonth() + 1,
     periodeAnnee: new Date().getFullYear(),
   })
   const [error, setError] = useState('')
@@ -30,15 +30,16 @@ function PaiementModal({ onClose, caisses }) {
 
   const { data: elevesRes } = useQuery({
     queryKey: ['eleves-all'],
-    queryFn:  () => elevesApi.getAll({ limit: 200 })
+    queryFn: () => elevesApi.getAll({ limit: 200 })
   })
   const eleves = elevesRes?.data?.data || []
 
   const { mutate, isPending } = useMutation({
     mutationFn: caisseApi.createPaiement,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['paiements'] })
       qc.invalidateQueries({ queryKey: ['caisse-stats'] })
+      toast.success('Paiement enregistré')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -162,10 +163,10 @@ function PaiementModal({ onClose, caisses }) {
 function BonModal({ onClose, caisses }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
-    caisseId:      caisses[0]?.id || '',
-    type:          'SORTIE',
-    montant:       '',
-    motif:         '',
+    caisseId: caisses[0]?.id || '',
+    type: 'SORTIE',
+    montant: '',
+    motif: '',
     dateOperation: new Date().toISOString().slice(0, 10),
   })
   const [error, setError] = useState('')
@@ -173,9 +174,10 @@ function BonModal({ onClose, caisses }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: caisseApi.createBon,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bons'] })
       qc.invalidateQueries({ queryKey: ['caisse-stats'] })
+      toast.success('Bon de caisse créé')
       onClose()
     },
     onError: (err) => setError(err.response?.data?.message || 'Erreur')
@@ -264,30 +266,30 @@ function BonModal({ onClose, caisses }) {
 
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Caisse() {
-  const [tab,         setTab]         = useState('paiements')
-  const [modalType,   setModalType]   = useState(null)
-  const [pagePaie,    setPagePaie]    = useState(1)
-  const [pageBons,    setPageBons]    = useState(1)
+  const [tab, setTab] = useState('paiements')
+  const [modalType, setModalType] = useState(null)
+  const [pagePaie, setPagePaie] = useState(1)
+  const [pageBons, setPageBons] = useState(1)
 
-  const { data: statsRes }   = useQuery({ queryKey: ['caisse-stats'],  queryFn: caisseApi.getStats })
-  const { data: caissesRes } = useQuery({ queryKey: ['caisses'],       queryFn: caisseApi.getCaisses })
+  const { data: statsRes } = useQuery({ queryKey: ['caisse-stats'], queryFn: caisseApi.getStats })
+  const { data: caissesRes } = useQuery({ queryKey: ['caisses'], queryFn: caisseApi.getCaisses })
   const { data: paieRes, isLoading: paieLoading } = useQuery({
     queryKey: ['paiements', pagePaie],
-    queryFn:  () => caisseApi.getPaiements({ page: pagePaie, limit: 15 }),
+    queryFn: () => caisseApi.getPaiements({ page: pagePaie, limit: 15 }),
     keepPreviousData: true
   })
   const { data: bonsRes, isLoading: bonsLoading } = useQuery({
     queryKey: ['bons', pageBons],
-    queryFn:  () => caisseApi.getBons({ page: pageBons, limit: 15 }),
+    queryFn: () => caisseApi.getBons({ page: pageBons, limit: 15 }),
     keepPreviousData: true
   })
 
-  const stats    = statsRes?.data?.data
-  const caisses  = caissesRes?.data?.data || []
-  const paiements = paieRes?.data?.data   || []
-  const paieMeta  = paieRes?.data?.meta   || {}
-  const bons      = bonsRes?.data?.data   || []
-  const bonsMeta  = bonsRes?.data?.meta   || {}
+  const stats = statsRes?.data?.data
+  const caisses = caissesRes?.data?.data || []
+  const paiements = paieRes?.data?.data || []
+  const paieMeta = paieRes?.data?.meta || {}
+  const bons = bonsRes?.data?.data || []
+  const bonsMeta = bonsRes?.data?.meta || {}
 
   return (
     <div className="space-y-4">
@@ -346,14 +348,13 @@ export default function Caisse() {
       <div className="flex gap-1 border-b border-gray-200">
         {[
           { key: 'paiements', label: '💳 Paiements élèves' },
-          { key: 'bons',      label: '🧾 Bons de caisse' },
+          { key: 'bons', label: '🧾 Bons de caisse' },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${
-              tab === t.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${tab === t.key
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}>
             {t.label}
           </button>
         ))}
