@@ -2,8 +2,7 @@ const service = require('./centres.service')
 
 module.exports = {
   async getAll(req, reply) {
-    const data = await service.getAll()
-    return { data }
+    return { data: await service.getAll() }
   },
 
   async getById(req, reply) {

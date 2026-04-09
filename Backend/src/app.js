@@ -120,4 +120,6 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
   }
 })
 
+fastify.register(require('./modules/candidatures/candidatures.routes'), { prefix: '/api/candidatures' })
+
 module.exports = fastify

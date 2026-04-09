@@ -2,11 +2,14 @@ const service = require('./filieres.service')
 
 module.exports = {
   async getAll(req, reply) {
-    const centreId = req.user.role === 'SUPER_ADMIN'
-      ? req.query.centreId || req.user.centreId
-      : req.user.centreId
+    const centreId = req.user
+      ? (req.user.role === 'SUPER_ADMIN'
+        ? req.query.centreId || req.user.centreId
+        : req.user.centreId)
+      : req.query.centreId
     return { data: await service.getAll(centreId) }
   },
+
   async getById(req, reply) {
     return { data: await service.getById(req.params.id) }
   },

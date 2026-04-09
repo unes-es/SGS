@@ -95,6 +95,13 @@ enum TypeDocument {
   AUTRE
 }
 
+enum StatutCandidature {
+  EN_ATTENTE
+  EN_COURS
+  ACCEPTEE
+  REFUSEE
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -117,6 +124,7 @@ model Centre {
   caisses         Caisse[]
   personnel       Personnel[]
   salaires        Salaire[]
+  candidatures    Candidature[]
 
   @@map("centres")
 }
@@ -144,6 +152,7 @@ model Utilisateur {
   bonsCaisseCrees   BonCaisse[]
   documentsGeneres  Document[]
   paiementsEncaisses PaiementEleve[]
+  candidaturesTreatees Candidature[]
 
   @@index([centreId])
   @@map("utilisateurs")
@@ -165,6 +174,7 @@ model Filiere {
   centre          Centre   @relation(fields: [centreId], references: [id])
   classes         Classe[]
   matieres        Matiere[]
+  candidatures    Candidature[]
 
   @@index([centreId])
   @@map("filieres")
@@ -428,4 +438,33 @@ model Document {
 
   @@index([eleveId])
   @@map("documents")
+}
+
+model Candidature {
+  id              String             @id @default(uuid())
+  centreId        String
+  filiereId       String?
+  prenom          String
+  nom             String
+  email           String
+  telephone       String?
+  dateNaissance   DateTime?          @db.Date
+  adresse         String?
+  nomParent       String?
+  telParent       String?
+  message         String?
+  statut          StatutCandidature  @default(EN_ATTENTE)
+  noteInterne     String?
+  traitePar       String?
+  traiteAt        DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  centre          Centre             @relation(fields: [centreId], references: [id])
+  filiere         Filiere?           @relation(fields: [filiereId], references: [id])
+  traiteParUser   Utilisateur?       @relation(fields: [traitePar], references: [id])
+
+  @@index([centreId])
+  @@index([statut])
+  @@map("candidatures")
 }

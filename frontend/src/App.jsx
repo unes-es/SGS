@@ -5,25 +5,26 @@ import { useEffect } from 'react'
 import { authApi } from './api/auth'
 
 // layouts
-import PublicLayout  from './components/layout/PublicLayout'
-import AdminLayout   from './components/layout/AdminLayout'
+import PublicLayout from './components/layout/PublicLayout'
+import AdminLayout from './components/layout/AdminLayout'
 
 // public pages
-import LandingPage   from './pages/public/LandingPage'
+import LandingPage from './pages/public/LandingPage'
 
 // admin pages
-import LoginPage     from './pages/admin/LoginPage'
-import Dashboard     from './pages/admin/Dashboard'
-import Eleves        from './pages/admin/Eleves'
-import Absences      from './pages/admin/Absences'
-import Classes       from './pages/admin/Classes'
-import Notes         from './pages/admin/Notes'
-import Personnel     from './pages/admin/Personnel'
-import Caisse        from './pages/admin/Caisse'
-import Documents     from './pages/admin/Documents'
-import Filieres      from './pages/admin/Filieres'
-import Salaires      from './pages/admin/Salaires'
-import Emplois       from './pages/admin/Emplois'
+import LoginPage from './pages/admin/LoginPage'
+import Dashboard from './pages/admin/Dashboard'
+import Eleves from './pages/admin/Eleves'
+import Absences from './pages/admin/Absences'
+import Classes from './pages/admin/Classes'
+import Notes from './pages/admin/Notes'
+import Personnel from './pages/admin/Personnel'
+import Caisse from './pages/admin/Caisse'
+import Documents from './pages/admin/Documents'
+import Filieres from './pages/admin/Filieres'
+import Salaires from './pages/admin/Salaires'
+import Emplois from './pages/admin/Emplois'
+import Candidatures from './pages/admin/Candidatures'
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -64,43 +65,43 @@ function AuthInit({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-    <AuthInit>
-      <Routes>
-        {/* Public */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPage />} />
-        </Route>
+      <AuthInit>
+        <Routes>
+          {/* Public */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<LandingPage />} />
+          </Route>
 
-        {/* Admin login — no layout */}
-        <Route path="/admin/login" element={<LoginPage />} />
+          {/* Admin login — no layout */}
+          <Route path="/admin/login" element={<LoginPage />} />
 
-        {/* Admin — protected */}
-        <Route path="/admin" element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          <Route index                   element={<Dashboard />} />
-          <Route path="eleves"           element={<Eleves />} />
-          <Route path="eleves/new"       element={<Eleves />} />
-          <Route path="absences"         element={<Absences />} />
-          <Route path="classes"          element={<Classes />} />
-          <Route path="notes"            element={<Notes />} />
-          <Route path="personnel"        element={<Personnel />} />
-          <Route path="caisse"           element={<Caisse />} />
-          <Route path="documents"        element={<Documents />} />
-          <Route path="filieres"         element={<Filieres />} />
-          <Route path="salaires"         element={<Salaires />} />
-          <Route path="emplois"          element={<Emplois />} />
-          <Route path="candidatures"     element={<Soon name="Candidatures" />} />
-          <Route path="notifications"    element={<Soon name="Notifications" />} />
-          <Route path="portail"          element={<Soon name="Portail Parents" />} />
-          <Route path="rapports"         element={<Soon name="Rapports" />} />
-          <Route path="vitrine"          element={<Soon name="Site Vitrine" />} />
-          <Route path="parametres"       element={<Soon name="Paramètres" />} />
-          <Route index element={<Dashboard />} />
-        </Route>
-      </Routes>
+          {/* Admin — protected */}
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Dashboard />} />
+            <Route path="eleves" element={<Eleves />} />
+            <Route path="eleves/new" element={<Eleves />} />
+            <Route path="absences" element={<Absences />} />
+            <Route path="classes" element={<Classes />} />
+            <Route path="notes" element={<Notes />} />
+            <Route path="personnel" element={<Personnel />} />
+            <Route path="caisse" element={<Caisse />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="filieres" element={<Filieres />} />
+            <Route path="salaires" element={<Salaires />} />
+            <Route path="emplois" element={<Emplois />} />
+            <Route path="candidatures" element={<Candidatures />} />
+            <Route path="notifications" element={<Soon name="Notifications" />} />
+            <Route path="portail" element={<Soon name="Portail Parents" />} />
+            <Route path="rapports" element={<Soon name="Rapports" />} />
+            <Route path="vitrine" element={<Soon name="Site Vitrine" />} />
+            <Route path="parametres" element={<Soon name="Paramètres" />} />
+            <Route index element={<Dashboard />} />
+          </Route>
+        </Routes>
       </AuthInit>
     </BrowserRouter>
   )

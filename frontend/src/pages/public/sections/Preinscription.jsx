@@ -1,22 +1,60 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import axios from 'axios'
+
+// public API calls — no auth needed
+const publicApi = {
+  getCentres:  () => axios.get('/api/centres'),
+  getFilieres: (centreId) => axios.get('/api/filieres', { params: { centreId } }),
+}
 
 export default function Preinscription() {
   const [form, setForm] = useState({
     prenom:'', nom:'', email:'', telephone:'',
-    centre:'', filiere:'', niveau:''
+    centreId:'', filiereId:'', niveau:''
   })
-  const [sent,  setSent]  = useState(false)
-  const [error, setError] = useState('')
+  const [sent,    setSent]    = useState(false)
+  const [error,   setError]   = useState('')
+  const [loading, setLoading] = useState(false)
   const set = (k, v) => setForm(f => ({...f, [k]: v}))
 
-  const handleSubmit = (e) => {
+  const { data: centresRes } = useQuery({
+    queryKey: ['public-centres'],
+    queryFn:  publicApi.getCentres
+  })
+
+  const { data: filieresRes } = useQuery({
+    queryKey: ['public-filieres', form.centreId],
+    queryFn:  () => publicApi.getFilieres(form.centreId),
+    enabled:  !!form.centreId
+  })
+
+  const centres  = centresRes?.data?.data  || []
+  const filieres = filieresRes?.data?.data || []
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.prenom || !form.email || !form.centre || !form.filiere) {
+    if (!form.prenom || !form.email || !form.centreId || !form.filiereId) {
       setError('Merci de remplir tous les champs obligatoires (*)')
       return
     }
     setError('')
-    setSent(true)
+    setLoading(true)
+    try {
+      await axios.post('/api/candidatures/public', {
+        prenom:    form.prenom,
+        nom:       form.nom,
+        email:     form.email,
+        telephone: form.telephone,
+        centreId:  form.centreId,
+        filiereId: form.filiereId,
+      })
+      setSent(true)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Une erreur est survenue, veuillez réessayer.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -24,7 +62,6 @@ export default function Preinscription() {
       className="py-24 relative overflow-hidden"
       style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d2d2d 100%)' }}>
 
-      {/* Grid */}
       <div className="absolute inset-0 pointer-events-none opacity-30"
         style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px)',
@@ -34,7 +71,7 @@ export default function Preinscription() {
       <div className="relative z-10 max-w-6xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left */}
+          {/* Left — unchanged */}
           <div>
             <div className="flex items-center gap-3 text-yellow-400 text-xs font-bold uppercase tracking-widest mb-4">
               <span className="w-5 h-0.5 bg-yellow-400 rounded"></span>
@@ -47,7 +84,6 @@ export default function Preinscription() {
             <p className="text-gray-400 leading-relaxed mb-8">
               Remplissez le formulaire, et recevez une réponse sous 48h.
             </p>
-
             <div className="space-y-5">
               {[
                 { n:'1', title:'Remplissez le formulaire', sub:'Vos informations personnelles et votre choix de filière' },
@@ -65,7 +101,6 @@ export default function Preinscription() {
                 </div>
               ))}
             </div>
-
             <div className="mt-8 bg-yellow-500/10 border border-yellow-500/25 rounded-xl px-5 py-4">
               <div className="text-yellow-400 font-bold text-sm mb-1">⚡ Places limitées — Rentrée septembre 2026</div>
               <div className="text-gray-500 text-xs">Les dossiers sont traités par ordre d'arrivée</div>
@@ -99,34 +134,32 @@ export default function Preinscription() {
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
-                  <FI label="Prénom *"    value={form.prenom}    onChange={v => set('prenom',v)} />
-                  <FI label="Nom *"       value={form.nom}       onChange={v => set('nom',v)} />
+                  <FI label="Prénom *" value={form.prenom}    onChange={v => set('prenom', v)} />
+                  <FI label="Nom *"    value={form.nom}       onChange={v => set('nom', v)} />
                 </div>
-                <FI label="Email *"       value={form.email}     onChange={v => set('email',v)}     type="email" />
-                <FI label="Téléphone"     value={form.telephone} onChange={v => set('telephone',v)} type="tel" />
+                <FI label="Email *"    value={form.email}     onChange={v => set('email', v)}     type="email" />
+                <FI label="Téléphone"  value={form.telephone} onChange={v => set('telephone', v)} type="tel" />
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Centre souhaité *</label>
-                  <select value={form.centre} onChange={e => set('centre', e.target.value)}
+                  <select value={form.centreId} onChange={e => { set('centreId', e.target.value); set('filiereId', '') }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
                     <option value="">Choisir un centre</option>
-                    <option>SGS Casablanca</option>
-                    <option>SGS Rabat</option>
-                    <option>Indifférent</option>
+                    {centres.map(c => (
+                      <option key={c.id} value={c.id}>{c.nom} — {c.ville}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Filière souhaitée *</label>
-                  <select value={form.filiere} onChange={e => set('filiere', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500">
-                    <option value="">Choisir une filière</option>
-                    <option>BTS Développement Informatique</option>
-                    <option>BTS Réseaux & Télécoms</option>
-                    <option>BTS Commerce & Marketing</option>
-                    <option>Licence Gestion des Entreprises</option>
-                    <option>Licence Mécatronique</option>
-                    <option>Licence RH & Management (2026)</option>
+                  <select value={form.filiereId} onChange={e => set('filiereId', e.target.value)}
+                    disabled={!form.centreId}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50">
+                    <option value="">{form.centreId ? 'Choisir une filière' : 'Sélectionnez un centre d\'abord'}</option>
+                    {filieres.map(f => (
+                      <option key={f.id} value={f.id}>{f.nom}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -143,9 +176,9 @@ export default function Preinscription() {
                   </select>
                 </div>
 
-                <button type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-sm transition">
-                  ✉️ Envoyer ma candidature
+                <button type="submit" disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition">
+                  {loading ? 'Envoi en cours...' : '✉️ Envoyer ma candidature'}
                 </button>
                 <p className="text-center text-xs text-gray-400">
                   🔒 Vos données sont confidentielles · Réponse sous 48h
