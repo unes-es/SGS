@@ -145,4 +145,86 @@ async function getMoyenneClasse(classeId, periode) {
   return sorted
 }
 
-module.exports = { getAll, getById, create, update, remove, getMoyenne, getMoyenneClasse }
+async function getBulletin(eleveId, periode) {
+  // get eleve info
+  const eleve = await prisma.eleve.findUnique({
+    where: { id: eleveId },
+    include: {
+      utilisateur: { select: { prenom: true, nom: true, email: true } },
+      classe: {
+        include: { filiere: true }
+      }
+    }
+  })
+  if (!eleve) throw { statusCode: 404, message: 'Élève non trouvé' }
+
+  // get centre info
+  const centre = await prisma.centre.findFirst()
+
+  // get notes for this eleve/periode
+  const notes = await prisma.note.findMany({
+    where: { eleveId, periode },
+    include: { matiere: { select: { nom: true, coefficient: true } } },
+    orderBy: { matiere: { nom: 'asc' } }
+  })
+
+  // compute moyenne per matiere (group by matiere)
+  const byMatiere = {}
+  for (const n of notes) {
+    const key = n.matiereId
+    if (!byMatiere[key]) {
+      byMatiere[key] = {
+        nom:         n.matiere.nom,
+        coefficient: parseFloat(n.matiere.coefficient),
+        notes:       []
+      }
+    }
+    byMatiere[key].notes.push({
+      note:     parseFloat(n.note),
+      noteMax:  parseFloat(n.noteMax),
+      typeEval: n.typeEval
+    })
+  }
+
+  // average per matiere
+  const matieres = Object.values(byMatiere).map(m => {
+    const totalNote = m.notes.reduce((s, n) => s + (n.note / n.noteMax) * 20, 0)
+    const moyenne   = Math.round((totalNote / m.notes.length) * 100) / 100
+    return { ...m, moyenne }
+  })
+
+  // overall weighted average
+  const totalCoeff  = matieres.reduce((s, m) => s + m.coefficient, 0)
+  const totalPoints = matieres.reduce((s, m) => s + m.moyenne * m.coefficient, 0)
+  const moyenne     = totalCoeff > 0
+    ? Math.round((totalPoints / totalCoeff) * 100) / 100
+    : null
+
+  // mention
+  const getMention = (m) => {
+    if (m >= 16) return 'Très bien'
+    if (m >= 14) return 'Bien'
+    if (m >= 12) return 'Assez bien'
+    if (m >= 10) return 'Passable'
+    return 'Insuffisant'
+  }
+
+  // rank in class
+  const classement = await getMoyenneClasse(eleve.classeId, periode)
+  const rang       = classement.find(r => r.eleveId === eleveId)?.rang || null
+  const totalEleves = classement.length
+
+  return {
+    eleve,
+    centre,
+    periode,
+    matieres,
+    moyenne,
+    mention:     moyenne ? getMention(moyenne) : null,
+    rang,
+    totalEleves,
+    anneeScolaire: eleve.classe?.anneeScolaire || '2025-2026'
+  }
+}
+
+module.exports = { getAll, getById, create, update, remove, getMoyenne, getMoyenneClasse, getBulletin }

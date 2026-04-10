@@ -6,6 +6,8 @@ async function notesRoutes(fastify) {
   fastify.addHook('preHandler', authenticate)
 
   fastify.get('/',    ctrl.getAll)
+  fastify.get('/bulletin/:eleveId/:periode/pdf', ctrl.getBulletinPdf)
+  fastify.get('/bulletin/:eleveId/:periode', ctrl.getBulletin)
   fastify.get('/:id', ctrl.getById)
 
   // moyenne per eleve

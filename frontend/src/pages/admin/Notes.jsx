@@ -10,6 +10,7 @@ import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
 import { toast } from 'sonner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import api from '../../api/axios'
 
 const PERIODES = ['T1', 'T2', 'T3']
 const TYPE_EVALS = ['CONTROLE', 'EXAMEN', 'TP', 'PROJET']
@@ -281,6 +282,20 @@ export default function Notes() {
     return 'text-red-500'
   }
 
+  const downloadBulletin = async (eleveId, periode) => {
+    try {
+      const res = await api.get(`/notes/bulletin/${eleveId}/${periode}/pdf`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `bulletin-${periode}.pdf`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Erreur lors de la génération du bulletin')
+    }
+  }
+
   return (
     <div className="space-y-4">
 
@@ -366,8 +381,14 @@ export default function Notes() {
                       <div className="flex gap-2">
                         <button onClick={() => setModal(n)}
                           className="text-xs text-gray-400 hover:text-blue-600 transition">✏️</button>
-                        <button onClick={() => setConfirm(n)}
+                        <button onClick={() => remove(n.id)}
                           className="text-xs text-gray-400 hover:text-red-500 transition">🗑</button>
+                        <button
+                          onClick={() => downloadBulletin(n.eleve.id, n.periode)}
+                          className="text-xs text-violet-500 hover:text-violet-700 font-semibold transition"
+                          title="Télécharger le bulletin">
+                          📄
+                        </button>
                       </div>
                     </td>
                   </tr>
