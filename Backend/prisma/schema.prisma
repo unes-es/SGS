@@ -102,6 +102,14 @@ enum StatutCandidature {
   REFUSEE
 }
 
+enum TypeNotification {
+  IMPAYES
+  ABSENCE
+  CANDIDATURE
+  PAIEMENT
+  SYSTEME
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -125,6 +133,7 @@ model Centre {
   personnel       Personnel[]
   salaires        Salaire[]
   candidatures    Candidature[]
+  notifications   Notification[]
 
   @@map("centres")
 }
@@ -153,6 +162,7 @@ model Utilisateur {
   documentsGeneres  Document[]
   paiementsEncaisses PaiementEleve[]
   candidaturesTreatees Candidature[]
+  notifications   Notification[]
 
   @@index([centreId])
   @@map("utilisateurs")
@@ -467,4 +477,24 @@ model Candidature {
   @@index([centreId])
   @@index([statut])
   @@map("candidatures")
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  centreId    String
+  userId      String?          // null = broadcast to all staff
+  type        TypeNotification
+  titre       String
+  message     String
+  isRead      Boolean          @default(false)
+  link        String?          // optional deep link e.g. /admin/caisse
+  createdAt   DateTime         @default(now())
+
+  centre      Centre           @relation(fields: [centreId], references: [id])
+  user        Utilisateur?     @relation(fields: [userId], references: [id])
+
+  @@index([centreId])
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
 }

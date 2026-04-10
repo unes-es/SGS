@@ -1,37 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { authApi } from '../../api/auth'
-
-const NAV = [
-  { section: 'GÉNÉRAL' },
-  { icon: '📊', label: 'Tableau de bord', to: '/admin' },
-  { section: 'PHASE 1' },
-  { icon: '🎓', label: 'Élèves',          to: '/admin/eleves' },
-  { icon: '📅', label: 'Absences',        to: '/admin/absences' },
-  { icon: '🏫', label: 'Classes',         to: '/admin/classes' },
-  { icon: '📚', label: 'Filières',        to: '/admin/filieres' },
-  { icon: '🗓️', label: 'Emplois du temps', to: '/admin/emplois' },
-  { icon: '📝', label: 'Notes',           to: '/admin/notes' },
-  { icon: '👥', label: 'Personnel',       to: '/admin/personnel' },
-  { icon: '💳', label: 'Salaires',        to: '/admin/salaires' },
-  { icon: '💰', label: 'Caisse',          to: '/admin/caisse' },
-  { icon: '📄', label: 'Documents',       to: '/admin/documents' },
-  { section: 'PHASE 2' },
-  { icon: '📋', label: 'Candidatures',    to: '/admin/candidatures' },
-  { icon: '🔔', label: 'Notifications',   to: '/admin/notifications' },
-  { icon: '👨‍👩‍👧', label: 'Portail Parents', to: '/admin/portail' },
-  { icon: '📈', label: 'Rapports',        to: '/admin/rapports' },
-  { section: 'PHASE 3' },
-  { icon: '🌍', label: 'Site Vitrine',    to: '/admin/vitrine' },
-  { icon: '⚙️', label: 'Paramètres',     to: '/admin/parametres' },
-]
+import { useQuery } from '@tanstack/react-query'
+import { candidaturesApi } from '../../api/candidatures'
+import { notificationsApi } from '../../api/notifications'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    try { await authApi.logout() } catch {}
+    try { await authApi.logout() } catch { }
     logout()
     navigate('/admin/login')
   }
@@ -39,6 +18,49 @@ export default function Sidebar({ isOpen, onClose }) {
   const handleNavClick = () => {
     if (window.innerWidth < 1024) onClose()
   }
+
+  const { data: candStats } = useQuery({
+    queryKey: ['candidatures-stats'],
+    queryFn: candidaturesApi.getStats,
+    refetchInterval: 60000
+  })
+
+  const { data: notifData } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => notificationsApi.getAll({ limit: 1 }),
+    refetchInterval: 30000
+  })
+
+  const pendingCandidatures = candStats?.data?.data?.enAttente || 0
+  const unreadNotifs = notifData?.data?.meta?.unread || 0
+  const BADGES = {
+    '/admin/candidatures': pendingCandidatures,
+    '/admin/notifications': unreadNotifs,
+  }
+
+  const NAV = [
+  { section: 'GÉNÉRAL' },
+  { icon: '📊', label: 'Tableau de bord', to: '/admin' },
+  { section: 'PHASE 1' },
+  { icon: '🎓', label: 'Élèves', to: '/admin/eleves' },
+  { icon: '📅', label: 'Absences', to: '/admin/absences' },
+  { icon: '🏫', label: 'Classes', to: '/admin/classes' },
+  { icon: '📚', label: 'Filières', to: '/admin/filieres' },
+  { icon: '🗓️', label: 'Emplois du temps', to: '/admin/emplois' },
+  { icon: '📝', label: 'Notes', to: '/admin/notes' },
+  { icon: '👥', label: 'Personnel', to: '/admin/personnel' },
+  { icon: '💳', label: 'Salaires', to: '/admin/salaires' },
+  { icon: '💰', label: 'Caisse', to: '/admin/caisse' },
+  { icon: '📄', label: 'Documents', to: '/admin/documents' },
+  { section: 'PHASE 2' },
+  { icon: '📋', label: 'Candidatures', to: '/admin/candidatures', badge: pendingCandidatures },
+  { icon: '🔔', label: 'Notifications', to: '/admin/notifications', badge: unreadNotifs },
+  { icon: '👨‍👩‍👧', label: 'Portail Parents', to: '/admin/portail' },
+  { icon: '📈', label: 'Rapports', to: '/admin/rapports' },
+  { section: 'PHASE 3' },
+  { icon: '🌍', label: 'Site Vitrine', to: '/admin/vitrine' },
+  { icon: '⚙️', label: 'Paramètres', to: '/admin/parametres' },
+]
 
   return (
     <>
@@ -100,15 +122,19 @@ export default function Sidebar({ isOpen, onClose }) {
                 end={item.to === '/admin'}
                 onClick={handleNavClick}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-blue-600/20 text-blue-400'
-                      : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                  `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                    ? 'bg-blue-600/20 text-blue-400'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
                   }`
                 }
               >
                 <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
-                <span className="truncate">{item.label}</span>
+                <span className="truncate flex-1">{item.label}</span>
+                {BADGES[item.to] > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {BADGES[item.to] > 99 ? '99+' : BADGES[item.to]}
+                  </span>
+                )}
               </NavLink>
             )
           })}

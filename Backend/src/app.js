@@ -122,4 +122,19 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
 
 fastify.register(require('./modules/candidatures/candidatures.routes'), { prefix: '/api/candidatures' })
 
+fastify.register(require('./modules/notifications/notifications.routes'), { prefix: '/api/notifications' })
+
+const cron = require('node-cron')
+const notifService = require('./modules/notifications/notifications.service')
+
+// Run every day at 8am — check impayés
+cron.schedule('0 8 * * *', async () => {
+  try {
+    await notifService.checkImpayés()
+    console.log('✅ Impayés check done')
+  } catch (err) {
+    console.error('❌ Impayés check failed:', err)
+  }
+})
+
 module.exports = fastify

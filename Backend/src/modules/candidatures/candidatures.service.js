@@ -76,4 +76,26 @@ async function getStats(centreId) {
   return { total, enAttente, acceptees, refusees, enCours }
 }
 
+const notifService = require('../notifications/notifications.service')
+
+async function create(data) {
+  const candidature = await prisma.candidature.create({
+    data: {
+      ...data,
+      ...(data.dateNaissance && { dateNaissance: new Date(data.dateNaissance) })
+    }
+  })
+
+  // broadcast notification to staff
+  await notifService.createBroadcast({
+    centreId: data.centreId,
+    type:     'CANDIDATURE',
+    titre:    'Nouvelle candidature reçue',
+    message:  `${data.prenom} ${data.nom} a soumis une candidature${data.filiereId ? '' : ''}.`,
+    link:     '/admin/candidatures'
+  })
+
+  return candidature
+}
+
 module.exports = { getAll, getById, create, updateStatut, getStats }
