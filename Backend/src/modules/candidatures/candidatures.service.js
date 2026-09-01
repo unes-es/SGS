@@ -40,10 +40,25 @@ async function getById(id) {
 }
 
 async function create(data) {
+  // POST /candidatures/public has no auth guard (both the public landing
+  // page form AND the admin's own "manual candidature" modal call this
+  // exact endpoint - see candidatures.routes.js) - so `data` here is
+  // unauthenticated user input. Only whitelist fields a candidate is
+  // actually meant to set; without this, a raw POST could set `statut`
+  // (e.g. straight to ACCEPTEE), `noteInterne`, `traitePar`, or `traiteAt`
+  // directly, bypassing the admin review flow entirely.
+  const {
+    prenom, nom, email, telephone, dateNaissance,
+    adresse, nomParent, telParent, message,
+    centreId, filiereId
+  } = data
+
   return prisma.candidature.create({
     data: {
-      ...data,
-      ...(data.dateNaissance && { dateNaissance: new Date(data.dateNaissance) })
+      prenom, nom, email, telephone,
+      adresse, nomParent, telParent, message,
+      centreId, filiereId,
+      ...(dateNaissance && { dateNaissance: new Date(dateNaissance) })
     }
   })
 }
