@@ -59,7 +59,12 @@ async function create(data, generePar) {
       ...data,
       generePar,
       numeroSerie,
-      fichierUrl: data.fichierUrl || `/documents/${numeroSerie}.pdf`
+      fichierUrl: data.fichierUrl || `/documents/${numeroSerie}.pdf`,
+      // '' (unselected in the dropdown) must not reach Prisma as a
+      // paiementId - it's a valid relation column, so an empty string
+      // would fail the foreign key constraint instead of just meaning
+      // "none selected".
+      paiementId: data.paiementId || null
     },
     include: {
       eleve: {
@@ -128,13 +133,17 @@ async function generatePdf(id) {
       include: { utilisateur: true }
     })
   }
-  // get latest paiement if recu
+  // Use the paiement selected at document-creation time; fall back to
+  // "latest paiement" only for documents created before paiementId existed
+  // on this model (or if the admin left it unselected).
   let paiement = null
   if (doc.type === 'RECU_PAIEMENT') {
-    paiement = await prisma.paiementEleve.findFirst({
-      where: { eleveId: doc.eleveId },
-      orderBy: { createdAt: 'desc' }
-    })
+    paiement = doc.paiementId
+      ? await prisma.paiementEleve.findUnique({ where: { id: doc.paiementId } })
+      : await prisma.paiementEleve.findFirst({
+          where: { eleveId: doc.eleveId },
+          orderBy: { createdAt: 'desc' }
+        })
   }
   const pdf = createBaseDocument(centre)
 

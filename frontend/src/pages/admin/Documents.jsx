@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { documentsApi } from '../../api/documents'
+import { caisseApi } from '../../api/caisse'
 import api from '../../api/axios'
 import { elevesApi } from '../../api/eleves'
 import { toast } from 'sonner'
@@ -56,6 +57,7 @@ function DocumentModal({ onClose }) {
     type: 'ATTESTATION_SCOLARITE',
     titre: '',
     anneeScolaire: '2025-2026',
+    paiementId: '',
   })
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -66,9 +68,20 @@ function DocumentModal({ onClose }) {
   })
   const eleves = elevesRes?.data?.data || []
 
+  // Only fetched when generating a reçu, and only once an élève is picked -
+  // lets the admin choose which paiement the reçu is for instead of always
+  // getting whichever one happens to be most recent.
+  const { data: paiementsRes } = useQuery({
+    queryKey: ['eleve-paiements', form.eleveId],
+    queryFn: () => caisseApi.getPaiements({ eleveId: form.eleveId, limit: 100 }),
+    enabled: form.type === 'RECU_PAIEMENT' && !!form.eleveId
+  })
+  const paiements = paiementsRes?.data?.data || []
+
   const handleTypeChange = (type) => {
     set('type', type)
     set('titre', TYPE_LABELS[type] + ' ' + form.anneeScolaire)
+    set('paiementId', '')
   }
 
   const { mutate, isPending } = useMutation({
@@ -105,7 +118,7 @@ function DocumentModal({ onClose }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
-            <select value={form.eleveId} onChange={e => set('eleveId', e.target.value)}
+            <select value={form.eleveId} onChange={e => { set('eleveId', e.target.value); set('paiementId', '') }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
               <option value="">Choisir un élève</option>
               {eleves.map(e => (
@@ -132,6 +145,24 @@ function DocumentModal({ onClose }) {
               ))}
             </div>
           </div>
+
+          {form.type === 'RECU_PAIEMENT' && form.eleveId && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Paiement</label>
+              <select value={form.paiementId} onChange={e => set('paiementId', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">Le plus récent (par défaut)</option>
+                {paiements.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {new Date(p.datePaiement).toLocaleDateString('fr-FR')} — {Number(p.montant).toLocaleString('fr-MA')} MAD ({p.typeFrais})
+                  </option>
+                ))}
+              </select>
+              {paiements.length === 0 && (
+                <p className="mt-1 text-xs text-gray-400">Aucun paiement trouvé pour cet élève.</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Titre *</label>

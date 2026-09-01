@@ -407,6 +407,7 @@ model PaiementEleve {
   eleve         Eleve        @relation(fields: [eleveId], references: [id])
   caisse        Caisse       @relation(fields: [caisseId], references: [id])
   encaisseParUser Utilisateur @relation(fields: [encaissePar], references: [id])
+  documents     Document[]
 
   @@index([eleveId])
   @@index([caisseId])
@@ -441,10 +442,15 @@ model Document {
   fichierUrl    String
   anneeScolaire String?
   numeroSerie   String       @unique
+  // Which paiement a RECU_PAIEMENT document is for - null for every other
+  // type, and null on documents created before this field existed (their
+  // PDF still falls back to "latest paiement", the old behavior).
+  paiementId    String?
   createdAt     DateTime     @default(now())
 
-  eleve         Eleve        @relation(fields: [eleveId], references: [id])
-  genereParUser Utilisateur  @relation(fields: [generePar], references: [id])
+  eleve         Eleve           @relation(fields: [eleveId], references: [id])
+  genereParUser Utilisateur     @relation(fields: [generePar], references: [id])
+  paiement      PaiementEleve?  @relation(fields: [paiementId], references: [id])
 
   @@index([eleveId])
   @@map("documents")
