@@ -192,15 +192,35 @@ section for detail — moved here since it's now shipped, not debt.
       both centres mixed together with no way to filter it down.
 ---
 
-## 📋 PHASE 2.2 — Portail Candidat/Étudiant (Not started)
+## 📋 PHASE 2.2 — Portail Candidat/Étudiant (Sprint 1 shipped 01/09)
 
-### Sprint 1 — Roles & Auth
-- [ ] Add CANDIDAT and ETUDIANT roles to schema
-- [ ] On candidature submit → auto-create CANDIDAT user account
-- [ ] Send email with credentials (matricule + temp password)
-- [ ] Candidat login page (separate from admin)
-- [ ] On acceptance → convert CANDIDAT to ETUDIANT role
+### Sprint 1 — Roles & Auth ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Add CANDIDAT and ETUDIANT roles to schema
+- [x] On candidature submit → auto-create CANDIDAT user account (skips
+      gracefully if the email already belongs to a staff/PARENT account)
+- [x] Send email with a "set your password" link (Resend, not a temp
+      password — reuses the same hashed-token mechanism as forgot-password)
+- [x] Candidat/étudiant login page (`/candidat/login`, separate from admin)
+- [x] Forgot/reset password flow (rate-limited, account-enumeration-safe,
+      single-use tokens, 48h TTL)
+- [x] Minimal portal status page (`/portail`) — candidature status for
+      CANDIDAT, dossier élève summary for ETUDIANT
+- [x] On acceptance/conversion → promote CANDIDAT to ETUDIANT on the same
+      account (via `candidatureId` in `ConvertirEleveModal`), not a duplicate
+- [x] `/auth/register` now requires SUPER_ADMIN auth — was fully public
 - [ ] Minor check during conversion → optionally create PARENT account
+      (deferred — no parent email field exists yet; belongs with Portail
+      Parents)
+- ⚠️ Resend is on the `resend.dev` sandbox domain — only delivers to the
+  Resend account owner's own inbox until a real sending domain is verified.
+  Confirmed working end-to-end to that inbox; other recipients get a
+  logged, non-fatal 422 from Resend (`sendEmail` never throws).
+- ⚠️ Production `docker-compose.yml` backend service does **not** yet have
+  `RESEND_API_KEY`/`EMAIL_FROM` wired into its `environment:` block (VPS
+  `.env` has both set) — add
+  `RESEND_API_KEY: ${RESEND_API_KEY}` / `EMAIL_FROM: ${EMAIL_FROM}` next to
+  the existing `FRONTEND_URL` line, then redeploy, to make production email
+  sending live.
 ### Sprint 2 — Candidat Portal
 - [ ] Candidat dashboard: view candidature status
 - [ ] Document upload on candidature (CIN, diplôme, photo)
