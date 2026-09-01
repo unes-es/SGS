@@ -274,7 +274,7 @@ sandbox domain, so even once wired, delivery is limited to the Resend
 account owner's own inbox until a real sending domain is verified.
 ---
 
-## 📋 PHASE 2.3 — Programmes & Formations (Sprint 1 shipped 01/09)
+## 📋 PHASE 2.3 — Programmes & Formations ✅ (fully shipped 01/09)
 
 ### Sprint 1 — Types de formation ✅ (done 01/09, deployed + verified end-to-end)
 - [x] Add typeFormation to Classe model: JOUR, SOIR, WEEKEND, HYBRIDE, INTENSIF
@@ -298,11 +298,15 @@ account owner's own inbox until a real sending domain is verified.
       `PaiementEleve` amounts (those are entered by staff at payment
       time). Editable inline in the filière detail panel, with a reset
       (↺) to fall back to the filière price again.
-### Sprint 3 — Reporting par format
-- [ ] Enrollment stats by formation type
-- [ ] Revenue by formation type
-- [ ] Capacity utilization per format
-- [ ] Comparison charts in dashboard
+### Sprint 3 — Reporting par format ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Enrollment stats by formation type
+- [x] Revenue by formation type
+- [x] Capacity utilization per format
+- [x] Comparison charts in dashboard — new "Formats" tab in Rapports.jsx:
+      3 KPI cards, a dual-axis bar chart (élèves + revenu), detail table
+
+**Phase 2.3 (Programmes & Formations) is now fully shipped — all 3
+sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
 ---
 
 ## 🔮 PHASE 3 — Advanced (Not started)
