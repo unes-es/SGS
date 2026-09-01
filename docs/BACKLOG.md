@@ -221,11 +221,23 @@ section for detail — moved here since it's now shipped, not debt.
   `RESEND_API_KEY: ${RESEND_API_KEY}` / `EMAIL_FROM: ${EMAIL_FROM}` next to
   the existing `FRONTEND_URL` line, then redeploy, to make production email
   sending live.
-### Sprint 2 — Candidat Portal
-- [ ] Candidat dashboard: view candidature status
-- [ ] Document upload on candidature (CIN, diplôme, photo)
-- [ ] Messages from secretariat
-- [ ] Status history timeline
+### Sprint 2 — Candidat Portal ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Candidat dashboard: view candidature status (shipped Sprint 1)
+- [x] Document upload on candidature (CIN, diplôme, photo) — 5MB cap,
+      PNG/JPEG/WEBP/PDF, stored under `/uploads/candidatures/`
+- [x] Messages from secretariat — two-way, staff reply best-effort emails
+      the candidat (candidat message doesn't email staff, they're already
+      watching the admin panel)
+- [x] Status history timeline — merged into the same feed as messages
+      (`CandidatureEvenement`, `type: MESSAGE | STATUT_CHANGE`) rather
+      than a separate widget, so both show interleaved in order
+- Admin side: `CandidaturePanel` in `Candidatures.jsx` now shows received
+  documents + the same message thread with a reply box, scoped to
+  SUPER_ADMIN/DIRECTEUR/SECRETAIRE for uploading/replying, open to any
+  authenticated staff for viewing (matches the existing statut pattern)
+- Fixed in passing: `axios.js`'s 401/refresh-failure redirect always sent
+  the user to `/admin/login`, even for a CANDIDAT/ETUDIANT session — that
+  interceptor is shared by both apps, now checks `user.role` first
 ### Sprint 3 — Student Portal (ETUDIANT)
 - [ ] ETUDIANT dashboard (notes, absences, emploi du temps, paiements)
 - [ ] Document download (attestations, bulletins)
