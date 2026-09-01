@@ -1,5 +1,4 @@
 require('dotenv').config()
-const prisma = require('./config/db')
 const fastify = require('fastify')({
   logger: true
 })
@@ -36,54 +35,9 @@ fastify.register(require('./modules/personnel/personnel.routes'), { prefix: '/ap
 fastify.register(require('./modules/salaires/salaires.routes'), { prefix: '/api/salaires' })
 fastify.register(require('./modules/caisse/caisse.routes'), { prefix: '/api/caisse' })
 fastify.register(require('./modules/documents/documents.routes'), { prefix: '/api/documents' })
-fastify.register(async function (f) {
-  f.addHook('preHandler', require('./middlewares/authenticate'))
-  f.get('/matieres', async (req, reply) => {
-    const { filiereId } = req.query
-    const matieres = await prisma.matiere.findMany({
-      where: { ...(filiereId && { filiereId }) },
-      orderBy: { nom: 'asc' }
-    })
-    return { data: matieres }
-  })
-}, { prefix: '/api' })
+fastify.register(require('./modules/matieres/matieres.routes'), { prefix: '/api/matieres' })
 
 fastify.register(require('./modules/emplois/emplois.routes'), { prefix: '/api/emplois' })
-
-
-fastify.register(async function (f) {
-  f.addHook('preHandler', require('./middlewares/authenticate'))
-
-  f.post('/matieres', async (req) => {
-    // On récupère les données du corps de la requête
-    const { nom, code, coefficient, volumeHoraire, estOptionnelle, filiereId } = req.body;
-
-    const data = await prisma.matiere.create({
-      data: {
-        nom: nom,
-        code: code || "",
-        coefficient: parseInt(coefficient) || 1, // Sécurité pour le coefficient
-        volumeHoraire: volumeHoraire ? parseInt(volumeHoraire) : null, // Conversion ICI
-        estOptionnelle: Boolean(estOptionnelle),
-        filiereId: filiereId
-      }
-    });
-    return data;
-  })
-
-  f.put('/matieres/:id', async (req) => {
-    const data = await prisma.matiere.update({
-      where: { id: req.params.id },
-      data: req.body
-    })
-    return { data }
-  })
-
-  f.delete('/matieres/:id', async (req) => {
-    await prisma.matiere.delete({ where: { id: req.params.id } })
-    return { message: 'Supprimée' }
-  })
-}, { prefix: '/api' })
 
 fastify.setErrorHandler((error, req, reply) => {
   const statusCode = error.statusCode || 500
