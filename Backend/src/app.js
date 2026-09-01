@@ -123,6 +123,7 @@ fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req, bo
 fastify.register(require('./modules/candidatures/candidatures.routes'), { prefix: '/api/candidatures' })
 
 fastify.register(require('./modules/notifications/notifications.routes'), { prefix: '/api/notifications' })
+fastify.register(require('./modules/rapports/rapports.routes'), { prefix: '/api/rapports' })
 
 const cron = require('node-cron')
 const notifService = require('./modules/notifications/notifications.service')

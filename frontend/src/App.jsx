@@ -26,6 +26,7 @@ import Salaires from './pages/admin/Salaires'
 import Emplois from './pages/admin/Emplois'
 import Candidatures from './pages/admin/Candidatures'
 import Notifications from './pages/admin/Notifications'
+import Rapports from './pages/admin/Rapports'
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -97,9 +98,9 @@ export default function App() {
             <Route path="candidatures" element={<Candidatures />} />
             <Route path="notifications" element={<Notifications/>} />
             <Route path="portail" element={<Soon name="Portail Parents" />} />
-            <Route path="rapports" element={<Soon name="Rapports" />} />
             <Route path="vitrine" element={<Soon name="Site Vitrine" />} />
             <Route path="parametres" element={<Soon name="Paramètres" />} />
+            <Route path="rapports" element={<Rapports />} />
             <Route index element={<Dashboard />} />
           </Route>
         </Routes>
