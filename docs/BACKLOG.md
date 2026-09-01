@@ -326,6 +326,14 @@ sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
       run manually
 - [ ] Staging environment
 ### Security & Compliance
+- [x] **User management page** — done 01/09 (unplanned, wasn't on this
+      list). New "Utilisateurs" admin page (`/admin/utilisateurs`,
+      SUPER_ADMIN + DIRECTEUR view, SUPER_ADMIN-only to change a role or
+      deactivate a login) — every login-capable account in one place,
+      which previously didn't exist anywhere (Personnel only showed
+      staff, nothing showed CANDIDAT/ETUDIANT accounts at all). Still the
+      same fixed 8-role model underneath, not per-permission access
+      control — see "Something more granular" if that's ever needed.
 - [ ] 2FA for admin accounts
 - [ ] Audit log (who did what and when)
 - [ ] GDPR-compliant data export/deletion
