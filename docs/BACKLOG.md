@@ -238,11 +238,14 @@ section for detail — moved here since it's now shipped, not debt.
 - Fixed in passing: `axios.js`'s 401/refresh-failure redirect always sent
   the user to `/admin/login`, even for a CANDIDAT/ETUDIANT session — that
   interceptor is shared by both apps, now checks `user.role` first
-### Sprint 3 — Student Portal (ETUDIANT)
-- [ ] ETUDIANT dashboard (notes, absences, emploi du temps, paiements)
-- [ ] Document download (attestations, bulletins)
-- [ ] View emploi du temps for their class
-- [ ] View and download receipts
+### Sprint 3 — Student Portal (ETUDIANT) ✅ (done 01/09, deployed + verified end-to-end)
+- [x] ETUDIANT dashboard (notes, absences, emploi du temps, paiements) —
+      tabbed view, all read-only
+- [x] Document download (attestations, bulletins) — own scoped endpoint
+      (`/api/portal/eleve/documents/:id/pdf`), not the staff route reused;
+      verified an ETUDIANT gets 404 on another élève's document id
+- [x] View emploi du temps for their class
+- [x] View and download receipts (paiements list + generated documents)
 ### Sprint 4 — Candidature Enhancements
 - [ ] Document attachments on candidatures (admin side)
 - [ ] Welcome email when élève created (credentials + first steps)
