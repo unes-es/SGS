@@ -285,10 +285,19 @@ account owner's own inbox until a real sending domain is verified.
 - [x] Different time slot defaults per type when adding a créneau (SOIR:
       18h-20h, INTENSIF: 8h-12h, others: 8h-10h — still freely editable
       per créneau, just a saner starting point)
-### Sprint 2 — Gestion des créneaux
-- [ ] Emploi du temps aware of formation type
-- [ ] Time slot templates per formation type
-- [ ] Different pricing per type (fraisScolarite varies by format)
+### Sprint 2 — Gestion des créneaux ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Emploi du temps aware of formation type — badge + per-format
+      créneau time defaults (shipped as part of Sprint 1)
+- [x] Time slot templates per formation type — covered by the same
+      per-format defaults above; deliberately didn't build a separate
+      named-template system on top, would have been over-engineering
+- [x] Different pricing per type (fraisScolarite varies by format) — new
+      `FormationTarif` model, an optional (filière, format) override with
+      fallback to the filière's own `fraisScolarite`. Same status as that
+      field: a reference/display value in the admin panel, not wired into
+      `PaiementEleve` amounts (those are entered by staff at payment
+      time). Editable inline in the filière detail panel, with a reset
+      (↺) to fall back to the filière price again.
 ### Sprint 3 — Reporting par format
 - [ ] Enrollment stats by formation type
 - [ ] Revenue by formation type
