@@ -246,12 +246,32 @@ section for detail — moved here since it's now shipped, not debt.
       verified an ETUDIANT gets 404 on another élève's document id
 - [x] View emploi du temps for their class
 - [x] View and download receipts (paiements list + generated documents)
-### Sprint 4 — Candidature Enhancements
-- [ ] Document attachments on candidatures (admin side)
-- [ ] Welcome email when élève created (credentials + first steps)
-- [ ] Conversion rate stat on Candidatures dashboard
-- [ ] Bulk actions (accept/refuse multiple candidatures)
-- [ ] Export candidatures to Excel
+### Sprint 4 — Candidature Enhancements ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Document attachments on candidatures (admin side) — staff can now
+      upload too, same endpoint the candidat portal already used
+- [x] Welcome email when élève created (credentials + first steps) — a
+      "set your password" link for a directly-enrolled élève with no
+      prior candidature; an "inscription confirmée" notification (no new
+      password) for one promoted from an existing CANDIDAT account
+- [x] Conversion rate stat on Candidatures dashboard — accepted ≠
+      converted, so this counts candidatures whose account actually made
+      it to ETUDIANT, not just ACCEPTEE
+- [x] Bulk actions (accept/refuse multiple candidatures) — checkbox
+      selection + bulk bar, routes through the same updateStatut() as a
+      single change (timeline + candidat email included)
+- [x] Export candidatures to Excel — CSV with UTF-8 BOM + `;` delimiter
+      (opens correctly in Excel with accents intact), not a real .xlsx —
+      no new dependency needed, same approach as the existing FEC/SAGE
+      export in rapports.service.js
+
+**Phase 2.2 (Portail Candidat/Étudiant) is now fully shipped — all 4
+sprints done and deployed to sgs.nextsi.ma.** Two known follow-ups, not
+blocking: (1) production `docker-compose.yml` still needs
+`RESEND_API_KEY`/`EMAIL_FROM` wired into the backend service's
+`environment:` block for outbound email to actually work in prod (see
+Sprint 1 note above); (2) Resend itself is still on the `resend.dev`
+sandbox domain, so even once wired, delivery is limited to the Resend
+account owner's own inbox until a real sending domain is verified.
 ---
 
 ## 📋 PHASE 2.3 — Programmes & Formations (Not started)
