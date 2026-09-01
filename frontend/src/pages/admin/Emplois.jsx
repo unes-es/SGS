@@ -7,9 +7,12 @@ import { personnelApi } from '../../api/personnel'
 import { toast } from 'sonner'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Badge from '../../components/ui/Badge'
 
 const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
 const JOURS_LABELS = { LUNDI: 'Lundi', MARDI: 'Mardi', MERCREDI: 'Mercredi', JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi' }
+const TYPE_FORMATION_LABELS = { JOUR: 'Jour', SOIR: 'Soir', WEEKEND: 'Weekend', HYBRIDE: 'Hybride', INTENSIF: 'Intensif' }
+const TYPE_FORMATION_COLORS = { JOUR: 'blue', SOIR: 'violet', WEEKEND: 'amber', HYBRIDE: 'green', INTENSIF: 'red' }
 
 const COLORS = [
   'bg-blue-100 border-blue-200 text-blue-800',
@@ -20,15 +23,28 @@ const COLORS = [
   'bg-teal-100 border-teal-200 text-teal-800',
 ]
 
-function EmploiModal({ onClose, classeId }) {
+// Phase 2.3 - a créneau's sensible default start/end time depends on what
+// format the classe actually runs in; a JOUR class defaulting to 8h-10h
+// makes sense, a SOIR one wouldn't. Just the initial form value - still
+// freely editable per créneau afterward.
+const DEFAULT_HORAIRES = {
+  JOUR: ['08:00', '10:00'],
+  SOIR: ['18:00', '20:00'],
+  WEEKEND: ['08:00', '10:00'],
+  HYBRIDE: ['08:00', '10:00'],
+  INTENSIF: ['08:00', '12:00'],
+}
+
+function EmploiModal({ onClose, classeId, typeFormation }) {
   const qc = useQueryClient()
+  const [heureDebutDefault, heureFinDefault] = DEFAULT_HORAIRES[typeFormation] || DEFAULT_HORAIRES.JOUR
   const [form, setForm] = useState({
     classeId,
     matiereId: '',
     professeurId: '',
     jourSemaine: 'LUNDI',
-    heureDebut: '08:00',
-    heureFin: '10:00',
+    heureDebut: heureDebutDefault,
+    heureFin: heureFinDefault,
     salle: '',
   })
   const [error, setError] = useState('')
@@ -193,12 +209,18 @@ export default function Emplois() {
         </div>
       </div>
 
-      <div className="no-print">
+      <div className="no-print flex items-center gap-3">
         <select value={classeId} onChange={e => setClasseId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-64">
           <option value="">Sélectionner une classe</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.nom} — {c.filiere?.nom}</option>)}
         </select>
+        {classeId && classes.find(c => c.id === classeId)?.typeFormation && (
+          <Badge
+            label={TYPE_FORMATION_LABELS[classes.find(c => c.id === classeId).typeFormation]}
+            variant={TYPE_FORMATION_COLORS[classes.find(c => c.id === classeId).typeFormation] || 'gray'}
+          />
+        )}
       </div>
 
       {!classeId && (
@@ -263,7 +285,11 @@ export default function Emplois() {
       )}
 
       {modal && classeId && (
-        <EmploiModal classeId={classeId} onClose={() => setModal(false)} />
+        <EmploiModal
+          classeId={classeId}
+          typeFormation={classes.find(c => c.id === classeId)?.typeFormation}
+          onClose={() => setModal(false)}
+        />
       )}
 
       <ConfirmDialog

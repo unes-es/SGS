@@ -133,6 +133,18 @@ enum TypeEvenementCandidature {
   STATUT_CHANGE
 }
 
+// Phase 2.3 - what format a Classe actually runs in. Defaults to JOUR
+// (the only format that existed before this field), so every pre-2.3
+// class stays correctly labeled without a data migration beyond the
+// column add itself.
+enum TypeFormation {
+  JOUR
+  SOIR
+  WEEKEND
+  HYBRIDE
+  INTENSIF
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -233,6 +245,7 @@ model Classe {
   capaciteMax   Int      @default(30)
   niveau        String?
   salle         String?
+  typeFormation TypeFormation @default(JOUR)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -240,6 +253,8 @@ model Classe {
   centre        Centre   @relation(fields: [centreId], references: [id])
   eleves        Eleve[]
   emploisDuTemps EmploiDuTemps[]
+
+  @@index([typeFormation])
 
   @@index([filiereId])
   @@index([centreId])

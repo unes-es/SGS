@@ -1,0 +1,18 @@
+feat(2.3 sprint 1): formation types on Classe (JOUR/SOIR/WEEKEND/HYBRIDE/INTENSIF)
+
+- Classe.typeFormation, defaults to JOUR so every pre-2.3 class stays
+  correctly labeled without a data migration beyond the column add itself
+- Filter classes by type (admin list + API), badge on class rows and on
+  the emploi du temps classe selector
+- Default creneau start/end time now depends on the classe's format when
+  adding a seance (SOIR: 18h-20h, INTENSIF: 8h-12h, others: 8h-10h) -
+  still freely editable per creneau afterward, just a saner starting point
+  than always defaulting to a daytime slot
+
+Verified end-to-end: confirmed all pre-existing classes defaulted to
+JOUR after the migration, created a SOIR classe via the API, confirmed
+the typeFormation filter actually filters (1 result for SOIR vs 6 for
+JOUR), and confirmed in the live UI that the Soir badge shows correctly
+and that opening "Ajouter seance" for that classe prefills 18:00-20:00.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>

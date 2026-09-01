@@ -10,6 +10,9 @@ import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 
+const TYPE_FORMATION_LABELS = { JOUR: 'Jour', SOIR: 'Soir', WEEKEND: 'Weekend', HYBRIDE: 'Hybride', INTENSIF: 'Intensif' }
+const TYPE_FORMATION_COLORS = { JOUR: 'blue', SOIR: 'violet', WEEKEND: 'amber', HYBRIDE: 'green', INTENSIF: 'red' }
+
 function ClasseModal({ classe, onClose, centreId }) {
   const qc = useQueryClient()
   const isEdit = !!classe
@@ -21,6 +24,7 @@ function ClasseModal({ classe, onClose, centreId }) {
     capaciteMax: classe?.capaciteMax || 30,
     niveau: classe?.niveau || '',
     salle: classe?.salle || '',
+    typeFormation: classe?.typeFormation || 'JOUR',
   })
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -88,6 +92,16 @@ function ClasseModal({ classe, onClose, centreId }) {
             <Field label="Salle" value={form.salle} onChange={v => set('salle', v)} placeholder="Salle A1" />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Format</label>
+            <select value={form.typeFormation} onChange={e => set('typeFormation', e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              {Object.entries(TYPE_FORMATION_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button onClick={onClose}
               className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50 transition">
@@ -124,6 +138,7 @@ export default function Classes() {
   const [modal, setModal] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [filiereId, setFiliereId] = useState('')
+  const [typeFormation, setTypeFormation] = useState('')
 
   const [search, setSearch] = useState('')
 
@@ -133,8 +148,8 @@ export default function Classes() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['classes', { filiereId, centreId }],
-    queryFn: () => classesApi.getAll({ filiereId, centreId }),
+    queryKey: ['classes', { filiereId, typeFormation, centreId }],
+    queryFn: () => classesApi.getAll({ filiereId, typeFormation, centreId }),
   })
 
   const { mutate: remove } = useMutation({
@@ -180,6 +195,13 @@ export default function Classes() {
           <option value="">Toutes les filières</option>
           {filieres.map(f => <option key={f.id} value={f.id}>{f.nom}</option>)}
         </select>
+        <select value={typeFormation} onChange={e => setTypeFormation(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+          <option value="">Tous les formats</option>
+          {Object.entries(TYPE_FORMATION_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
       </div>
 
       <Card>
@@ -189,6 +211,7 @@ export default function Classes() {
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Classe</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Filière</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Format</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Année</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Élèves</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Capacité</th>
@@ -207,6 +230,9 @@ export default function Classes() {
                     </td>
                     <td className="px-5 py-3.5">
                       <Badge label={c.filiere?.nom} variant="blue" />
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge label={TYPE_FORMATION_LABELS[c.typeFormation] || c.typeFormation} variant={TYPE_FORMATION_COLORS[c.typeFormation] || 'gray'} />
                     </td>
                     <td className="px-5 py-3.5 text-gray-500 text-xs">{c.anneeScolaire}</td>
                     <td className="px-5 py-3.5">
@@ -235,12 +261,12 @@ export default function Classes() {
               })}
               {!classes.length && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center">
+                  <td colSpan={8} className="px-5 py-16 text-center">
                     <div className="text-4xl mb-3">🏫</div>
                     <div className="font-semibold text-gray-500">
-                      {search || filiereId ? 'Aucune classe trouvée' : 'Aucune classe créée'}
+                      {search || filiereId || typeFormation ? 'Aucune classe trouvée' : 'Aucune classe créée'}
                     </div>
-                    {!search && !filiereId && (
+                    {!search && !filiereId && !typeFormation && (
                       <div className="text-sm text-gray-400 mt-1">Cliquez sur "Nouvelle classe" pour commencer</div>
                     )}
                   </td>

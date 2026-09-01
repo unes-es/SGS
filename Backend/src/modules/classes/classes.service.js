@@ -1,10 +1,11 @@
 const prisma = require('../../config/db')
 
-async function getAll({ centreId, filiereId }) {
+async function getAll({ centreId, filiereId, typeFormation }) {
   return prisma.classe.findMany({
     where: {
       centreId,
-      ...(filiereId && { filiereId })
+      ...(filiereId && { filiereId }),
+      ...(typeFormation && { typeFormation })
     },
     include: {
       filiere: { select: { nom: true, code: true } },

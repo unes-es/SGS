@@ -5,7 +5,7 @@ module.exports = {
     const centreId = req.user.role === 'SUPER_ADMIN'
       ? req.query.centreId || req.user.centreId
       : req.user.centreId
-    return { data: await service.getAll({ centreId, filiereId: req.query.filiereId }) }
+    return { data: await service.getAll({ centreId, filiereId: req.query.filiereId, typeFormation: req.query.typeFormation }) }
   },
   async getById(req, reply) {
     return { data: await service.getById(req.params.id) }
