@@ -9,6 +9,7 @@ async function rapportsRoutes(fastify) {
   fastify.get('/presence',      ctrl.getTauxPresence)
   fastify.get('/reussite',      ctrl.getTauxReussite)
   fastify.get('/export-fec',    ctrl.exportFEC)
+  fastify.get('/formats',       ctrl.getStatsFormats)
 }
 
 module.exports = rapportsRoutes

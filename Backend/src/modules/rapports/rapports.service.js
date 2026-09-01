@@ -359,9 +359,56 @@ async function exportFEC(centreId, { annee, mois }) {
   return lines.join('\n')
 }
 
+// ── STATS PAR FORMAT (Phase 2.3 Sprint 3) ─────────
+
+const TYPES_FORMATION = ['JOUR', 'SOIR', 'WEEKEND', 'HYBRIDE', 'INTENSIF']
+
+async function getStatsFormats(centreId, { annee }) {
+  const anneeInt = parseInt(annee) || new Date().getFullYear()
+  const start = new Date(anneeInt, 0, 1)
+  const end   = new Date(anneeInt, 11, 31)
+
+  // One query per format rather than a single groupBy - Prisma's groupBy
+  // can't reach through PaiementEleve -> Eleve -> Classe.typeFormation
+  // in one call, and TYPES_FORMATION is a small fixed set (same
+  // "loop over a small enum" pattern as exportFEC's monthly loop above).
+  const stats = await Promise.all(TYPES_FORMATION.map(async (typeFormation) => {
+    const [classes, revenue] = await Promise.all([
+      prisma.classe.findMany({
+        where: { centreId, typeFormation },
+        select: { capaciteMax: true, _count: { select: { eleves: true } } }
+      }),
+      prisma.paiementEleve.aggregate({
+        where: {
+          caisse: { centreId },
+          datePaiement: { gte: start, lte: end },
+          eleve: { classe: { typeFormation } }
+        },
+        _sum: { montant: true }
+      })
+    ])
+
+    const nbClasses = classes.length
+    const capaciteTotal = classes.reduce((s, c) => s + c.capaciteMax, 0)
+    const nbEleves = classes.reduce((s, c) => s + c._count.eleves, 0)
+
+    return {
+      typeFormation,
+      nbClasses,
+      nbEleves,
+      capaciteTotal,
+      tauxUtilisation: capaciteTotal > 0 ? Math.round((nbEleves / capaciteTotal) * 1000) / 10 : 0,
+      revenue: parseFloat(revenue._sum.montant || 0)
+    }
+  }))
+
+  return { annee: anneeInt, stats }
+}
+
 module.exports = {
   getRapportFinancier,
   getTauxPresence,
   getTauxReussite,
-  exportFEC
+  exportFEC,
+  getStatsFormats
 }

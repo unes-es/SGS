@@ -7,7 +7,8 @@ import {
   LineChart, Line, Legend
 } from 'recharts'
 
-const TABS = ['Financier', 'Présence', 'Réussite', 'Export SAGE']
+const TABS = ['Financier', 'Présence', 'Réussite', 'Formats', 'Export SAGE']
+const TYPE_FORMATION_LABELS = { JOUR: 'Jour', SOIR: 'Soir', WEEKEND: 'Weekend', HYBRIDE: 'Hybride', INTENSIF: 'Intensif' }
 
 const currentYear = new Date().getFullYear()
 const YEARS = [currentYear, currentYear - 1, currentYear - 2]
@@ -48,6 +49,13 @@ export default function Rapports() {
     queryKey: ['rapports-reussite', annee, mois, centreId],
     queryFn: () => axios.get('/rapports/reussite', { params: { annee, mois, centreId } }).then(r => r.data.data),
     enabled: activeTab === 'Réussite',
+  })
+
+  // Formats (Phase 2.3 Sprint 3)
+  const { data: formats, isLoading: loadingFormats } = useQuery({
+    queryKey: ['rapports-formats', annee, centreId],
+    queryFn: () => axios.get('/rapports/formats', { params: { annee, centreId } }).then(r => r.data.data),
+    enabled: activeTab === 'Formats',
   })
 
   const handleExportFEC = async () => {
@@ -127,6 +135,9 @@ export default function Rapports() {
       )}
       {activeTab === 'Réussite' && (
         <ReussiteTab data={reussite} loading={loadingReus} />
+      )}
+      {activeTab === 'Formats' && (
+        <FormatsTab data={formats} loading={loadingFormats} />
       )}
       {activeTab === 'Export SAGE' && (
         <ExportTab onExport={handleExportFEC} exporting={exporting} annee={annee} mois={mois} />
@@ -336,6 +347,75 @@ function ReussiteTab({ data, loading }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Formats (Phase 2.3 Sprint 3) ────────────────────────────────
+function FormatsTab({ data, loading }) {
+  if (loading) return <Spinner />
+  if (!data) return <Empty />
+
+  const stats = (data.stats || []).map(s => ({ ...s, label: TYPE_FORMATION_LABELS[s.typeFormation] }))
+  const totalEleves = stats.reduce((s, f) => s + f.nbEleves, 0)
+  const totalRevenue = stats.reduce((s, f) => s + f.revenue, 0)
+  const activeFormats = stats.filter(f => f.nbClasses > 0).length
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Élèves inscrits" value={totalEleves} color="blue" />
+        <KpiCard label="Revenu total (année)" value={`${totalRevenue.toLocaleString('fr-MA')} MAD`} color="green" />
+        <KpiCard label="Formats actifs" value={`${activeFormats} / ${stats.length}`} color="blue" />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Élèves et revenu par format</h3>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={stats}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+            <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+            <Tooltip formatter={(v, name) => name === 'Revenu (MAD)' ? `${Number(v).toLocaleString('fr-MA')} MAD` : v} />
+            <Legend />
+            <Bar yAxisId="left" dataKey="nbEleves" name="Élèves" fill="#3b82f6" radius={[4,4,0,0]} />
+            <Bar yAxisId="right" dataKey="revenue" name="Revenu (MAD)" fill="#22c55e" radius={[4,4,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-700">Détail par format</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th className="px-4 py-2 text-left">Format</th>
+                <th className="px-4 py-2 text-right">Classes</th>
+                <th className="px-4 py-2 text-right">Élèves</th>
+                <th className="px-4 py-2 text-right">Capacité</th>
+                <th className="px-4 py-2 text-right">Taux d'occupation</th>
+                <th className="px-4 py-2 text-right">Revenu</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {stats.map(f => (
+                <tr key={f.typeFormation} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium">{f.label}</td>
+                  <td className="px-4 py-2 text-right text-gray-500">{f.nbClasses}</td>
+                  <td className="px-4 py-2 text-right text-gray-500">{f.nbEleves}</td>
+                  <td className="px-4 py-2 text-right text-gray-500">{f.capaciteTotal}</td>
+                  <td className="px-4 py-2 text-right"><TauxBadge taux={f.tauxUtilisation} /></td>
+                  <td className="px-4 py-2 text-right font-semibold text-green-600">{f.revenue.toLocaleString('fr-MA')} MAD</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

@@ -32,5 +32,12 @@ module.exports = {
     reply.header('Content-Type', 'text/plain')
     reply.header('Content-Disposition', `attachment; filename="FEC-SGS-${annee}-${mois}.txt"`)
     return reply.send(csv)
+  },
+
+  async getStatsFormats(req, reply) {
+    const centreId = req.user.role === 'SUPER_ADMIN'
+      ? req.query.centreId || req.user.centreId
+      : req.user.centreId
+    return { data: await service.getStatsFormats(centreId, req.query) }
   }
 }
