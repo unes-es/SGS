@@ -29,6 +29,38 @@ the VPS before changing it.**
 >   now a real project-listing landing page, not a stray copy of the SGS app.
 >   `sgs.nextsi.ma` itself is unaffected.
 
+> **2026-09-01 incident: `sgs-nginx` is the shared reverse proxy for the whole
+> VPS, not just this project - and `deploy.sh` restarts it on every deploy.**
+> It currently terminates TLS and routes for `sgs.nextsi.ma`, `nextsi.ma`, and
+> (via a leftover config, see below) `postiz.nextsi.ma`. This project's own
+> `deploy.sh` runs `docker compose down` + `up -d --build`, which recreates
+> this container - meaning **every SGS deploy briefly takes down every domain
+> this nginx serves, not just sgs.nextsi.ma**, and any bad config anywhere in
+> `nginx/conf.d` (including config for a project this repo has nothing to do
+> with) can turn "briefly" into "stays down."
+>
+> That's exactly what happened tonight: `nginx/postiz.conf` referenced an
+> upstream container (`postiz`) that no longer exists (Postiz was stopped
+> earlier as architecturally not viable on this shared VPS - see that
+> project's own notes). Nginx refuses to start at all if *any* conf.d file
+> references an unresolvable upstream, so the moment this container got
+> recreated by an SGS deploy, all three domains went down together
+> (`connection refused` on 443) until the stale file was found and moved
+> aside (`nginx/postiz.conf` → `nginx/postiz.conf.disabled-stale-upstream`)
+> and the container restarted. It had been a landmine for a while - it just
+> hadn't been triggered because nothing had restarted this container since
+> Postiz was decommissioned.
+>
+> **Before running `deploy.sh` (or anything that restarts `sgs-nginx`)
+> going forward:** check `nginx/conf.d` (or wherever the live conf.d
+> actually lives - verify the path, don't assume) for config referencing
+> containers/services that may no longer exist, for any project. Cheaper
+> fix worth doing at some point: switch this project's `deploy.sh` to
+> restart only `backend` (and `frontend` build output, which doesn't need a
+> container restart - nginx just serves the rebuilt static files), and only
+> touch `nginx` explicitly when nginx config actually changed - not as a
+> matter of course on every deploy.
+
 ---
 
 ## Hosting
