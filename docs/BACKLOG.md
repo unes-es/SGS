@@ -269,24 +269,21 @@ section for detail — moved here since it's now shipped, not debt.
 
 ## 🎨 UI/UX Polish (added 01/09, evening)
 
-- [ ] **Regroup Sidebar nav by domain, not by dev phase** — `Sidebar.jsx`'s
-      `NAV` array currently groups items under `PHASE 1` / `PHASE 2` /
-      `PHASE 3` section headers, which reflects *when a feature shipped*,
-      not what it's for — meaningless to the school staff actually using
-      it. Regroup by nature instead, e.g.: **Académique** (Élèves,
-      Absences, Classes, Filières, Emplois du temps, Notes), **RH**
-      (Personnel, Salaires), **Finance** (Caisse, Documents),
-      **Admissions** (Candidatures, Notifications), **Rapports**
-      (Rapports), plus whatever Portail Parents/Site Vitrine/Paramètres
-      land under once they exist. Dashboard stays its own top-level item.
-- [ ] **Set a real page title** — `frontend/index.html` still has
-      `<title>frontend</title>`, the unchanged Vite scaffold default,
-      showing literally "frontend" in every browser tab. Should be "SGS"
-      or similar (e.g. "SGS — École Supérieure de Gestion et Sciences",
-      matching the school name used elsewhere). Worth also considering
-      per-route titles at the same time (e.g. "Élèves — SGS") while
-      touching this, though that's a separate, larger change (needs a
-      title-setting mechanism per route, not just the static HTML tag).
+- [x] **Regroup Sidebar nav by domain, not by dev phase** — done, later
+      01/09. Now: PÉDAGOGIE, RESSOURCES HUMAINES, FINANCE & DOCUMENTS,
+      ADMISSIONS & COMMUNICATION, RAPPORTS, SYSTÈME. Found + fixed a real
+      bug in the same file while at it: the centre indicator read
+      `user?.centre?.nom`, a field that has never existed on that object
+      (login only returns a flat `centreId`) - it's shown the static
+      fallback "Centre" since it was written, with a "Changer ↓" hint
+      that did nothing (no `onClick` at all). Now fetches and shows the
+      real active centre; the non-functional "Changer" text is gone.
+- [x] **Set a real page title** — done, later 01/09. `<title>SGS —
+      Gestion Scolaire</title>`, `lang="fr"` (was `"en"` on an
+      entirely French-language app). Per-route titles (e.g.
+      "Élèves — SGS") still not done - flagged as separate, larger scope
+      when this was written, still true; needs an actual title-setting
+      mechanism per route, not just the static HTML tag.
 
 ---
 
