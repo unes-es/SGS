@@ -110,6 +110,7 @@ function getPrefix(type) {
 
 const PDFDocument = require('pdfkit')
 const { createBaseDocument, addFooter } = require('../../utils/pdf')
+const { generateVerifyQr } = require('../../utils/qr')
 const { generateAttestationScolarite, generateRecuPaiement, generateAttestationTravail } = require('../../utils/pdfDocuments')
 
 async function generatePdf(id) {
@@ -122,14 +123,24 @@ async function generatePdf(id) {
           classe: { include: { filiere: true } }
         }
       },
+      personnel: { select: { centreId: true } },
       genereParUser: { select: { prenom: true, nom: true } }
     }
   })
 
   if (!doc) throw { statusCode: 404, message: 'Document non trouvé' }
 
-  // get centre info
-  const centre = await prisma.centre.findFirst()
+  // The document's own centre - was `prisma.centre.findFirst()`, which
+  // always grabbed whichever centre happens to sort first regardless of
+  // which one this document/élève/personnel actually belongs to. Went
+  // unnoticed while every centre rendered an identical hardcoded header;
+  // now that logo/couleurPrimaire are real per-centre branding (Sprint 6),
+  // a Rabat document showing Casablanca's branding would be an obvious,
+  // visible bug, not just a technicality.
+  const documentCentreId = doc.eleve?.centreId || doc.personnel?.centreId
+  const centre = documentCentreId
+    ? await prisma.centre.findUnique({ where: { id: documentCentreId } })
+    : await prisma.centre.findFirst()
 
   // The staff member an ATTESTATION_TRAVAIL is actually FOR - uses the
   // personnelId selected at creation time, same pattern as paiementId
@@ -184,10 +195,39 @@ async function generatePdf(id) {
       pdf.font('Helvetica').fontSize(12).text(`Document: ${doc.titre}`, { align: 'center' })
   }
 
-  addFooter(pdf, doc.numeroSerie)
+  const qrBuffer = await generateVerifyQr(doc.numeroSerie)
+  addFooter(pdf, doc.numeroSerie, qrBuffer)
   pdf.end()
 
   return { pdf, filename: `${doc.numeroSerie}.pdf` }
 }
 
-module.exports = { getAll, getById, create, remove, getByEleve, generatePdf }
+// Public (see documents.routes.js) - anyone who scans the QR code on a
+// printed document hits this, so the response is deliberately minimal:
+// enough to confirm the document is genuine without exposing full PII to
+// whoever happens to have the piece of paper (or a photo of it). No
+// eleveId/personnelId, no full names, no contact info.
+async function verify(numeroSerie) {
+  const doc = await prisma.document.findUnique({
+    where: { numeroSerie },
+    include: {
+      eleve: { include: { utilisateur: { select: { prenom: true, nom: true } } } },
+      personnel: { include: { utilisateur: { select: { prenom: true, nom: true } } } }
+    }
+  })
+  if (!doc) return { valid: false }
+
+  const target = doc.eleve?.utilisateur || doc.personnel?.utilisateur
+  return {
+    valid: true,
+    type: doc.type,
+    titre: doc.titre,
+    numeroSerie: doc.numeroSerie,
+    generatedAt: doc.createdAt,
+    // First name + last-initial only - identifies the document without
+    // publishing a full name to anyone who scans it.
+    targetName: target ? `${target.prenom} ${target.nom.charAt(0)}.` : null
+  }
+}
+
+module.exports = { getAll, getById, create, remove, getByEleve, generatePdf, verify }

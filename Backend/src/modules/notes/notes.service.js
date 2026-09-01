@@ -158,8 +158,11 @@ async function getBulletin(eleveId, periode) {
   })
   if (!eleve) throw { statusCode: 404, message: 'Élève non trouvé' }
 
-  // get centre info
-  const centre = await prisma.centre.findFirst()
+  // The élève's own centre, not just whichever one sorts first - see the
+  // identical fix/reasoning in documents.service.js's generatePdf().
+  const centre = eleve.centreId
+    ? await prisma.centre.findUnique({ where: { id: eleve.centreId } })
+    : await prisma.centre.findFirst()
 
   // get notes for this eleve/periode
   const notes = await prisma.note.findMany({

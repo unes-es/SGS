@@ -214,7 +214,7 @@ function generateBulletin(doc, { eleve, centre, periode, matieres, moyenne, ment
 
    // Header row
    let y = doc.y
-   doc.rect(tableX, y, tableWidth, rowH).fill('#1e40af')
+   doc.rect(tableX, y, tableWidth, rowH).fill(doc.brandColor || '#1e40af')
    doc.fillColor('white').font('Helvetica-Bold').fontSize(9)
    doc.text('MATIERE', tableX + 5, y + 7, { width: colWidths[0] - 5 })
    doc.text('COEFF.', tableX + colWidths[0], y + 7, { width: colWidths[1], align: 'center' })

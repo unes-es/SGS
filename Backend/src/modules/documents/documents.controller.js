@@ -27,6 +27,12 @@ module.exports = {
     await service.remove(req.params.id)
     return { message: 'Document supprimé' }
   },
+  async verify(req, reply) {
+    const data = await service.verify(req.params.numeroSerie)
+    if (!data.valid) return reply.status(404).send(data)
+    return { data }
+  },
+
   async generatePdf(req, reply) {
     try {
       const { pdf, filename } = await service.generatePdf(req.params.id)
