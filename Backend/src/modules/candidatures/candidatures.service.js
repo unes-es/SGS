@@ -39,30 +39,6 @@ async function getById(id) {
   return c
 }
 
-async function create(data) {
-  // POST /candidatures/public has no auth guard (both the public landing
-  // page form AND the admin's own "manual candidature" modal call this
-  // exact endpoint - see candidatures.routes.js) - so `data` here is
-  // unauthenticated user input. Only whitelist fields a candidate is
-  // actually meant to set; without this, a raw POST could set `statut`
-  // (e.g. straight to ACCEPTEE), `noteInterne`, `traitePar`, or `traiteAt`
-  // directly, bypassing the admin review flow entirely.
-  const {
-    prenom, nom, email, telephone, dateNaissance,
-    adresse, nomParent, telParent, message,
-    centreId, filiereId
-  } = data
-
-  return prisma.candidature.create({
-    data: {
-      prenom, nom, email, telephone,
-      adresse, nomParent, telParent, message,
-      centreId, filiereId,
-      ...(dateNaissance && { dateNaissance: new Date(dateNaissance) })
-    }
-  })
-}
-
 async function updateStatut(id, { statut, noteInterne }, traitePar) {
   await getById(id)
   return prisma.candidature.update({
@@ -94,19 +70,46 @@ async function getStats(centreId) {
 const notifService = require('../notifications/notifications.service')
 
 async function create(data) {
+  // POST /candidatures/public has no auth guard (both the public landing
+  // page form AND the admin's own "manual candidature" modal call this
+  // exact endpoint - see candidatures.routes.js) - so `data` here is
+  // unauthenticated user input. Only whitelist fields a candidate is
+  // actually meant to set; without this, a raw POST could set `statut`
+  // (e.g. straight to ACCEPTEE), `noteInterne`, `traitePar`, or `traiteAt`
+  // directly, bypassing the admin review flow entirely. Defense in depth
+  // alongside the route's own `additionalProperties: false` schema (see
+  // candidatures.routes.js) - that schema is the one actually stopping a
+  // raw request today, but a whitelist at the point data actually reaches
+  // Prisma is still worth having regardless of what happens upstream.
+  //
+  // NOTE: this used to live in a second, separate `create()` declared
+  // later in this same file - a leftover duplicate that silently shadowed
+  // this one at runtime (later function declaration wins), so this
+  // whitelist was dead code from the moment it was written until this
+  // merge. Verified with `node -e "console.log(require(...).create)"`
+  // before touching anything, since this is exactly the kind of thing
+  // easy to get wrong by assuming rather than checking.
+  const {
+    prenom, nom, email, telephone, dateNaissance,
+    adresse, nomParent, telParent, message,
+    centreId, filiereId
+  } = data
+
   const candidature = await prisma.candidature.create({
     data: {
-      ...data,
-      ...(data.dateNaissance && { dateNaissance: new Date(data.dateNaissance) })
+      prenom, nom, email, telephone,
+      adresse, nomParent, telParent, message,
+      centreId, filiereId,
+      ...(dateNaissance && { dateNaissance: new Date(dateNaissance) })
     }
   })
 
   // broadcast notification to staff
   await notifService.createBroadcast({
-    centreId: data.centreId,
+    centreId,
     type:     'CANDIDATURE',
     titre:    'Nouvelle candidature reçue',
-    message:  `${data.prenom} ${data.nom} a soumis une candidature${data.filiereId ? '' : ''}.`,
+    message:  `${prenom} ${nom} a soumis une candidature${filiereId ? '' : ''}.`,
     link:     '/admin/candidatures'
   })
 
