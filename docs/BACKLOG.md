@@ -131,16 +131,50 @@ against a live database for the first time:
       match and it returns real data locally, but hasn't been eyeballed
       against production numbers yet.
 
-### Sprint 6 — Paramètres & Documents avancés 📋 Not started
-- [ ] Page Paramètres: logo école, couleurs, infos centre
-- [ ] Logo upload → used in PDF headers (replacing current placeholder)
-- [ ] Modèles de documents personnalisables
-- [ ] QR code anti-fraude sur documents officiels
-- [x] ~~Document-type-aware creation form / personnel documents~~ — done
-      01/09, see Phase 1.2 TODOs above.
+### Sprint 6 — Paramètres & Documents avancés ✅ (done 01/09, evening)
+- [x] Page Paramètres: logo école, couleurs, infos centre —
+      `/admin/parametres`, SUPER_ADMIN/DIRECTEUR only, respects the
+      centre switcher (edits whichever centre is selected, not always
+      the admin's own).
+- [x] Logo upload → used in PDF headers (replacing current placeholder)
+      — `POST /centres/:id/logo`, PNG/JPEG/WEBP up to 2MB. SVG rejected
+      on purpose: pdfkit can't embed vector images without a much
+      heavier dependency, so an SVG would silently never show up on a
+      PDF. `couleurPrimaire` also now actually drives the PDF header/
+      accent color, which it never did before (was hardcoded blue).
+      Found + fixed along the way: `generatePdf()`/`getBulletin()`
+      resolved "the centre" via `prisma.centre.findFirst()` - always
+      whichever centre sorts first, not the document's actual centre.
+      Invisible while every centre looked identical; would have been a
+      real bug now that branding is real (Rabat documents showing
+      Casablanca's logo).
+- [x] QR code anti-fraude sur documents officiels — every
+      Document-table-backed PDF (attestations, reçus - anything with a
+      real `numeroSerie`) gets a QR code linking to a new public
+      `GET /documents/verify/:numeroSerie`, landing on a new
+      `/verify/:numeroSerie` page. Response is deliberately minimal (no
+      full PII) since anyone with the physical paper can scan it.
+      Bulletins aren't `Document`-table rows, so they don't get one -
+      plain footer, same as before. Found + fixed a real routing bug
+      while wiring this: the public route was declared "before" the
+      module's `authenticate` hook, which doesn't actually determine
+      exemption in Fastify (a hook on a shared parent scope applies to
+      children registered on it regardless of source order) - had to
+      move it into its own sibling `fastify.register()` scope,
+      matching `candidatures.routes.js`'s already-correct pattern.
+- [~] Modèles de documents personnalisables — interpreted as "documents
+      reflect the school's actual branding" (logo/color/info, the three
+      items above), not a separate swappable-layout template editor.
+      That reading matches how this sprint was originally scoped
+      (logo/couleurs/infos-centre listed right alongside it) - flag if
+      a real template editor (multiple layouts, WYSIWYG) was actually
+      wanted, that's meaningfully bigger scope than what shipped here.
 
-Rest of this sprint confirmed not started: no code for logo
-upload/paramètres page/templates/QR anywhere in the repo.
+Verified locally end-to-end for all of the above (uploaded a test
+logo, generated a real attestation PDF and confirmed the logo/color
+show up correctly, hit the verify endpoint with both a real and a fake
+serial). Not yet re-verified against production - deploy this before
+trusting it live.
 
 ### Unplanned — SUPER_ADMIN centre switcher ✅ (done 01/09, evening)
 Was a "Known Issues" tech-debt item below; promoted to a full fix
