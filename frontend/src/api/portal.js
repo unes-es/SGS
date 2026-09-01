@@ -13,4 +13,11 @@ export const portalApi = {
   },
   getMyEvenements:  () => api.get('/portal/candidature/evenements'),
   addMyMessage:     (message) => api.post('/portal/candidature/evenements', { message }),
+
+  getMyNotes:          () => api.get('/portal/eleve/notes'),
+  getMyAbsences:       () => api.get('/portal/eleve/absences'),
+  getMyEmploiDuTemps:  () => api.get('/portal/eleve/emploi'),
+  getMyPaiements:      () => api.get('/portal/eleve/paiements'),
+  getMyEleveDocuments: () => api.get('/portal/eleve/documents'),
+  getMyEleveDocumentPdf: (id) => api.get(`/portal/eleve/documents/${id}/pdf`, { responseType: 'blob' }),
 }

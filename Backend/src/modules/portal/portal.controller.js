@@ -33,5 +33,36 @@ module.exports = {
   async addMyMessage(req, reply) {
     const data = await service.addMyMessage(req.user.id, req.body.message)
     return reply.status(201).send({ data })
+  },
+
+  async getMyNotes(req, reply) {
+    return { data: await service.getMyNotes(req.user.id) }
+  },
+
+  async getMyAbsences(req, reply) {
+    return { data: await service.getMyAbsences(req.user.id) }
+  },
+
+  async getMyEmploiDuTemps(req, reply) {
+    return { data: await service.getMyEmploiDuTemps(req.user.id) }
+  },
+
+  async getMyPaiements(req, reply) {
+    return { data: await service.getMyPaiements(req.user.id) }
+  },
+
+  async getMyEleveDocuments(req, reply) {
+    return { data: await service.getMyEleveDocuments(req.user.id) }
+  },
+
+  async getMyEleveDocumentPdf(req, reply) {
+    try {
+      const { pdf, filename } = await service.getMyEleveDocumentPdf(req.user.id, req.params.id)
+      reply.header('Content-Type', 'application/pdf')
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+      return reply.send(pdf)
+    } catch (err) {
+      return reply.status(err.statusCode || 500).send({ message: err.message || 'Erreur PDF' })
+    }
   }
 }

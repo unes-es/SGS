@@ -16,6 +16,21 @@ async function portalRoutes(fastify) {
   fastify.post('/candidature/documents', ctrl.addMyDocument)
   fastify.get('/candidature/evenements',  ctrl.getMyEvenements)
   fastify.post('/candidature/evenements', ctrl.addMyMessage)
+
+  // Sprint 3 (Phase 2.2) - Student Portal, read-only. Each handler 404s
+  // naturally for a CANDIDAT (no eleve record yet) via getMyEleve in
+  // portal.service.js - no separate ETUDIANT-only check needed here.
+  fastify.get('/eleve/notes',     ctrl.getMyNotes)
+  fastify.get('/eleve/absences',  ctrl.getMyAbsences)
+  fastify.get('/eleve/emploi',    ctrl.getMyEmploiDuTemps)
+  fastify.get('/eleve/paiements', ctrl.getMyPaiements)
+  fastify.get('/eleve/documents', ctrl.getMyEleveDocuments)
+  // Deliberately its own scoped endpoint, not the staff /api/documents/:id/pdf
+  // route reused - that route has no ownership check (fine there, only
+  // ever called by authenticated staff who may fetch any élève's
+  // document). getMyEleveDocumentPdf() in portal.service.js verifies the
+  // document actually belongs to the caller's own eleve first.
+  fastify.get('/eleve/documents/:id/pdf', ctrl.getMyEleveDocumentPdf)
 }
 
 module.exports = portalRoutes

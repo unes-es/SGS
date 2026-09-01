@@ -78,16 +78,18 @@ export default function PortailPage() {
             {eleveLoading ? (
               <div className="text-sm text-gray-400">Chargement...</div>
             ) : eleve ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-                <Row label="Matricule" value={eleve.matricule} />
-                <Row label="Classe" value={eleve.classe?.nom} />
-                <Row label="Filière" value={eleve.classe?.filiere?.nom} />
-                <Row label="Statut" value={eleve.statut} />
-              </div>
+              <>
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+                  <Row label="Matricule" value={eleve.matricule} />
+                  <Row label="Classe" value={eleve.classe?.nom} />
+                  <Row label="Filière" value={eleve.classe?.filiere?.nom} />
+                  <Row label="Statut" value={eleve.statut} />
+                </div>
+                <EleveDashboard />
+              </>
             ) : (
               <Empty text="Dossier élève introuvable." />
             )}
-            <p className="text-xs text-gray-400 mt-4">Notes, absences, emploi du temps et paiements arrivent bientôt.</p>
           </>
         ) : (
           <>
@@ -117,6 +119,192 @@ export default function PortailPage() {
           </>
         )}
       </main>
+    </div>
+  )
+}
+
+const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
+const JOURS_LABELS = { LUNDI: 'Lundi', MARDI: 'Mardi', MERCREDI: 'Mercredi', JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi' }
+const DOC_TYPE_LABELS = {
+  ATTESTATION_SCOLARITE: 'Attestation de scolarité', RELEVE_NOTES: 'Relevé de notes',
+  RECU_PAIEMENT: 'Reçu de paiement', BULLETIN: 'Bulletin', AUTRE: 'Autre'
+}
+const MODE_PAIEMENT_LABELS = { ESPECES: 'Espèces', VIREMENT: 'Virement', CHEQUE: 'Chèque', EN_LIGNE: 'En ligne' }
+const TABS = [
+  { key: 'notes', label: 'Notes' },
+  { key: 'absences', label: 'Absences' },
+  { key: 'emploi', label: 'Emploi du temps' },
+  { key: 'paiements', label: 'Paiements' },
+  { key: 'documents', label: 'Documents' },
+]
+
+// Sprint 3 (Phase 2.2) - Student Portal. Read-only everywhere: an élève
+// views what staff already entered, never edits it here.
+function EleveDashboard() {
+  const [tab, setTab] = useState('notes')
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 mt-4 overflow-hidden">
+      <div className="flex overflow-x-auto border-b border-gray-100">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`shrink-0 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
+              tab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="p-4">
+        {tab === 'notes' && <NotesTab />}
+        {tab === 'absences' && <AbsencesTab />}
+        {tab === 'emploi' && <EmploiTab />}
+        {tab === 'paiements' && <PaiementsTab />}
+        {tab === 'documents' && <EleveDocumentsTab />}
+      </div>
+    </div>
+  )
+}
+
+function NotesTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['portal-notes'], queryFn: portalApi.getMyNotes })
+  const notes = data?.data?.data || []
+
+  if (isLoading) return <div className="text-xs text-gray-400">Chargement...</div>
+  if (notes.length === 0) return <div className="text-xs text-gray-400">Aucune note pour le moment.</div>
+
+  return (
+    <div className="space-y-2">
+      {notes.map(n => (
+        <div key={n.id} className="flex items-center justify-between text-xs border-b border-gray-50 pb-2 last:border-0">
+          <div>
+            <div className="font-semibold text-gray-900">{n.matiere?.nom}</div>
+            <div className="text-gray-400">{n.periode} · {n.typeEval}</div>
+          </div>
+          <div className="font-bold text-gray-900">{Number(n.note)}/{Number(n.noteMax)}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AbsencesTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['portal-absences'], queryFn: portalApi.getMyAbsences })
+  const absences = data?.data?.data || []
+
+  if (isLoading) return <div className="text-xs text-gray-400">Chargement...</div>
+  if (absences.length === 0) return <div className="text-xs text-gray-400">Aucune absence enregistrée.</div>
+
+  return (
+    <div className="space-y-2">
+      {absences.map(a => (
+        <div key={a.id} className="flex items-center justify-between text-xs border-b border-gray-50 pb-2 last:border-0">
+          <div>
+            <div className="font-semibold text-gray-900">
+              {a.matiere?.nom || 'Journée complète'}
+              {a.estJustifiee && <span className="ml-1.5 text-[10px] font-medium text-green-600">Justifiée</span>}
+            </div>
+            <div className="text-gray-400">{new Date(a.dateAbsence).toLocaleDateString('fr-FR')}{a.motif ? ` · ${a.motif}` : ''}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmploiTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['portal-emploi'], queryFn: portalApi.getMyEmploiDuTemps })
+  const emplois = data?.data?.data || []
+
+  if (isLoading) return <div className="text-xs text-gray-400">Chargement...</div>
+  if (emplois.length === 0) return <div className="text-xs text-gray-400">Emploi du temps non disponible.</div>
+
+  const byJour = JOURS.reduce((acc, j) => { acc[j] = emplois.filter(e => e.jourSemaine === j); return acc }, {})
+
+  return (
+    <div className="space-y-3">
+      {JOURS.filter(j => byJour[j].length > 0).map(jour => (
+        <div key={jour}>
+          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1">{JOURS_LABELS[jour]}</div>
+          <div className="space-y-1.5">
+            {byJour[jour].map(e => (
+              <div key={e.id} className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-2">
+                <div>
+                  <div className="font-semibold text-gray-900">{e.matiere?.nom}</div>
+                  <div className="text-gray-400">{e.professeur?.utilisateur?.prenom} {e.professeur?.utilisateur?.nom}{e.salle ? ` · Salle ${e.salle}` : ''}</div>
+                </div>
+                <div className="text-gray-600 font-medium shrink-0 ml-2">{e.heureDebut}–{e.heureFin}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PaiementsTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['portal-paiements'], queryFn: portalApi.getMyPaiements })
+  const paiements = data?.data?.data || []
+
+  if (isLoading) return <div className="text-xs text-gray-400">Chargement...</div>
+  if (paiements.length === 0) return <div className="text-xs text-gray-400">Aucun paiement enregistré.</div>
+
+  return (
+    <div className="space-y-2">
+      {paiements.map(p => (
+        <div key={p.id} className="flex items-center justify-between text-xs border-b border-gray-50 pb-2 last:border-0">
+          <div>
+            <div className="font-semibold text-gray-900">{p.typeFrais} · {MODE_PAIEMENT_LABELS[p.modePaiement]}</div>
+            <div className="text-gray-400">{new Date(p.datePaiement).toLocaleDateString('fr-FR')} · Réf. {p.reference}</div>
+          </div>
+          <div className="font-bold text-gray-900 shrink-0 ml-2">{Number(p.montant).toLocaleString('fr-FR')} DH</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EleveDocumentsTab() {
+  const { data, isLoading } = useQuery({ queryKey: ['portal-eleve-documents'], queryFn: portalApi.getMyEleveDocuments })
+  const documents = data?.data?.data || []
+
+  // PDFs are generated on demand (see documents.service.js), not stored
+  // as static files - same blob-download pattern as the admin Documents
+  // page, just against the ownership-checked portal endpoint.
+  const handleDownload = async (doc) => {
+    try {
+      const res = await portalApi.getMyEleveDocumentPdf(doc.id)
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = window.document.createElement('a')
+      a.href = url
+      a.download = `${doc.numeroSerie || doc.id}.pdf`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Erreur lors du téléchargement')
+    }
+  }
+
+  if (isLoading) return <div className="text-xs text-gray-400">Chargement...</div>
+  if (documents.length === 0) return <div className="text-xs text-gray-400">Aucun document disponible.</div>
+
+  return (
+    <div className="space-y-2">
+      {documents.map(d => (
+        <div key={d.id} className="flex items-center justify-between text-xs border-b border-gray-50 pb-2 last:border-0">
+          <div>
+            <div className="font-semibold text-gray-900">{DOC_TYPE_LABELS[d.type] || d.type}</div>
+            <div className="text-gray-400">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</div>
+          </div>
+          <button onClick={() => handleDownload(d)} className="text-blue-600 hover:underline shrink-0 ml-2">
+            Télécharger
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

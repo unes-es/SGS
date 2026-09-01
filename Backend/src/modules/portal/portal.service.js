@@ -70,7 +70,89 @@ async function addMyMessage(userId, message) {
   })
 }
 
+// Sprint 3 (Phase 2.2) - Student Portal. Every function here resolves the
+// caller's own eleve record first via getMyEleve (404s if there is none,
+// e.g. a CANDIDAT hitting these by mistake), same "resolve the caller's
+// own record, never trust an id from the request" pattern as the
+// candidature functions above.
+
+async function getMyNotes(userId) {
+  const eleve = await getMyEleve(userId)
+  return prisma.note.findMany({
+    where: { eleveId: eleve.id },
+    include: { matiere: { select: { nom: true } } },
+    orderBy: [{ periode: 'desc' }, { dateEval: 'desc' }]
+  })
+}
+
+async function getMyAbsences(userId) {
+  const eleve = await getMyEleve(userId)
+  return prisma.absence.findMany({
+    where: { eleveId: eleve.id },
+    include: { matiere: { select: { nom: true } } },
+    orderBy: { dateAbsence: 'desc' }
+  })
+}
+
+// Not the élève's own record - the weekly schedule for their whole classe,
+// since that's what an emploi du temps actually is. Still scoped safely:
+// classeId comes from the caller's own eleve record, not the request.
+async function getMyEmploiDuTemps(userId) {
+  const eleve = await getMyEleve(userId)
+  return prisma.emploiDuTemps.findMany({
+    where: { classeId: eleve.classeId },
+    include: {
+      matiere: { select: { nom: true } },
+      // prenom/nom live on Utilisateur, not Personnel itself - see
+      // CLAUDE.md's "field placement gotcha" note for the same split.
+      professeur: { select: { utilisateur: { select: { prenom: true, nom: true } } } }
+    },
+    orderBy: [{ jourSemaine: 'asc' }, { heureDebut: 'asc' }]
+  })
+}
+
+async function getMyPaiements(userId) {
+  const eleve = await getMyEleve(userId)
+  return prisma.paiementEleve.findMany({
+    where: { eleveId: eleve.id },
+    orderBy: { datePaiement: 'desc' }
+  })
+}
+
+// Generated documents (attestations, bulletins, relevés, reçus) - the
+// `Document` model, not `CandidatureDocument` above. Read-only: an élève
+// can view/download what staff generated, never create or delete one.
+async function getMyEleveDocuments(userId) {
+  const eleve = await getMyEleve(userId)
+  return prisma.document.findMany({
+    where: { eleveId: eleve.id },
+    orderBy: { createdAt: 'desc' }
+  })
+}
+
+const documentsService = require('../documents/documents.service')
+
+// documents.service.js's own generatePdf(id)/getById(id) have NO ownership
+// check - they're only ever called from the staff-side /api/documents/*
+// routes, where "authenticated staff can fetch any document" is correct.
+// It is NOT correct for the portal: an ETUDIANT passing an arbitrary
+// document id must not be able to pull another élève's attestation. This
+// wrapper is what makes that safe - it verifies the document actually
+// belongs to the caller's own eleve record before generating anything.
+async function getMyEleveDocumentPdf(userId, documentId) {
+  const eleve = await getMyEleve(userId)
+  const doc = await documentsService.getById(documentId)
+  if (doc.eleveId !== eleve.id) {
+    // 404, not 403 - don't confirm to the caller that a document with
+    // this id exists at all if it isn't theirs.
+    throw { statusCode: 404, message: 'Document non trouvé' }
+  }
+  return documentsService.generatePdf(documentId)
+}
+
 module.exports = {
   getMyCandidature, getMyEleve,
-  getMyDocuments, addMyDocument, getMyEvenements, addMyMessage
+  getMyDocuments, addMyDocument, getMyEvenements, addMyMessage,
+  getMyNotes, getMyAbsences, getMyEmploiDuTemps, getMyPaiements,
+  getMyEleveDocuments, getMyEleveDocumentPdf
 }
