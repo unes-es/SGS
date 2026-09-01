@@ -14,3 +14,11 @@ export const matieresApi2 = {
   update:       (id, data)  => api.put(`/matieres/${id}`, data),
   remove:       (id)        => api.delete(`/matieres/${id}`),
 }
+
+export const tarifsApi = {
+  getByFiliere: (filiereId) => api.get(`/filieres/${filiereId}/tarifs`),
+  upsert: (filiereId, typeFormation, fraisScolarite) =>
+    api.put(`/filieres/${filiereId}/tarifs/${typeFormation}`, { fraisScolarite }),
+  reset: (filiereId, typeFormation) =>
+    api.delete(`/filieres/${filiereId}/tarifs/${typeFormation}`),
+}

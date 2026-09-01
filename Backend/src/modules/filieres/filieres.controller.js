@@ -32,5 +32,19 @@ module.exports = {
       ? req.query.centreId || req.user.centreId
       : req.user.centreId
     return { data: await service.getElevesParFiliere(centreId) }
+  },
+
+  async getTarifs(req, reply) {
+    return { data: await service.getTarifs(req.params.id) }
+  },
+
+  async upsertTarif(req, reply) {
+    const data = await service.upsertTarif(req.params.id, req.params.typeFormation, req.body.fraisScolarite)
+    return { data }
+  },
+
+  async removeTarif(req, reply) {
+    await service.removeTarif(req.params.id, req.params.typeFormation)
+    return { message: 'Tarif réinitialisé' }
   }
 }

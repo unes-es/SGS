@@ -145,6 +145,28 @@ enum TypeFormation {
   INTENSIF
 }
 
+// Phase 2.3 Sprint 2 - an optional per-(filiere, format) override of
+// Filiere.fraisScolarite. Same status as fraisScolarite itself: a
+// reference/display value shown in the admin panel, not wired into
+// PaiementEleve amounts anywhere (those are entered by staff at payment
+// time) - this just lets "BTS Info - Soir" show a different monthly
+// price than "BTS Info - Jour" instead of one price for the whole
+// filiere regardless of format. No row here for a given format = falls
+// back to Filiere.fraisScolarite (see tarifs.service.js).
+model FormationTarif {
+  id             String        @id @default(uuid())
+  filiereId      String
+  typeFormation  TypeFormation
+  fraisScolarite Decimal       @db.Decimal(10, 2)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  filiere        Filiere       @relation(fields: [filiereId], references: [id], onDelete: Cascade)
+
+  @@unique([filiereId, typeFormation])
+  @@map("formation_tarifs")
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -231,6 +253,7 @@ model Filiere {
   classes         Classe[]
   matieres        Matiere[]
   candidatures    Candidature[]
+  formationTarifs FormationTarif[]
 
   @@index([centreId])
   @@map("filieres")

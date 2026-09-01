@@ -17,11 +17,20 @@ async function filieresRoutes(fastify) {
     })
     return { data: matieres }
   })
+  // Phase 2.3 Sprint 2 - public like the rest of this file's GETs, so a
+  // future public pricing page could read it directly without auth.
+  fastify.get('/:id/tarifs', ctrl.getTarifs)
 
   // protected routes
   fastify.post('/', { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.create)
   fastify.put('/:id', { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.update)
   fastify.delete('/:id', { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.remove)
+  fastify.put('/:id/tarifs/:typeFormation', {
+    preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')]
+  }, ctrl.upsertTarif)
+  fastify.delete('/:id/tarifs/:typeFormation', {
+    preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')]
+  }, ctrl.removeTarif)
 }
 
 module.exports = filieresRoutes

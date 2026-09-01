@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { useCentreStore } from '../../store/centreStore'
-import { filieresApi } from '../../api/filieres'
+import { filieresApi, tarifsApi } from '../../api/filieres'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import Badge from '../../components/ui/Badge'
@@ -168,6 +168,77 @@ function MiniField({ label, value, onChange, type = 'text', placeholder = '' }) 
   )
 }
 
+const TYPE_FORMATION_LABELS = { JOUR: 'Jour', SOIR: 'Soir', WEEKEND: 'Weekend', HYBRIDE: 'Hybride', INTENSIF: 'Intensif' }
+
+// Phase 2.3 Sprint 2 - per-format pricing override. A row with no
+// override (isOverride: false, see tarifs.getTarifs()) just displays the
+// filiere's own fraisScolarite - editing it here creates the override,
+// "Réinitialiser" removes it and falls back again.
+function TarifsSection({ filiereId }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(null)
+  const [value, setValue] = useState('')
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['tarifs', filiereId],
+    queryFn: () => tarifsApi.getByFiliere(filiereId)
+  })
+  const tarifs = data?.data?.data || []
+
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: ({ type, montant }) => tarifsApi.upsert(filiereId, type, montant),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tarifs', filiereId] })
+      toast.success('Tarif mis à jour')
+      setEditing(null)
+    }
+  })
+
+  const { mutate: reset } = useMutation({
+    mutationFn: (type) => tarifsApi.reset(filiereId, type),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tarifs', filiereId] })
+      toast.success('Tarif réinitialisé')
+    }
+  })
+
+  return (
+    <div>
+      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tarifs par format</div>
+      {isLoading ? <Spinner /> : (
+        <div className="space-y-1.5">
+          {tarifs.map(t => (
+            <div key={t.typeFormation} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <span className="text-sm font-semibold text-gray-800">{TYPE_FORMATION_LABELS[t.typeFormation]}</span>
+              {editing === t.typeFormation ? (
+                <div className="flex items-center gap-1.5">
+                  <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
+                    className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-500" />
+                  <button onClick={() => save({ type: t.typeFormation, montant: value })} disabled={isPending}
+                    className="text-blue-600 hover:text-blue-700 text-xs font-semibold">✓</button>
+                  <button onClick={() => setEditing(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-bold ${t.isOverride ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {parseFloat(t.fraisScolarite).toLocaleString('fr-FR')} MAD
+                  </span>
+                  <button onClick={() => { setEditing(t.typeFormation); setValue(t.fraisScolarite) }}
+                    className="text-gray-400 hover:text-blue-600 text-xs">✏️</button>
+                  {t.isOverride && (
+                    <button onClick={() => reset(t.typeFormation)}
+                      className="text-gray-400 hover:text-red-500 text-xs" title="Réinitialiser">↺</button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FilierePanel({ filiere, onClose, onEdit }) {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -275,6 +346,8 @@ function FilierePanel({ filiere, onClose, onEdit }) {
             )}
           </div>
         )}
+
+        <TarifsSection filiereId={filiere.id} />
       </div>
 
       <div className="p-4 border-t border-gray-100 flex gap-2">

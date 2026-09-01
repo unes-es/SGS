@@ -54,4 +54,40 @@ async function getElevesParFiliere(centreId) {
   })).filter(f => f.eleves > 0)
 }
 
-module.exports = { getAll, getById, create, update, remove, getElevesParFiliere }
+// Phase 2.3 Sprint 2 - per-(filiere, format) tarif overrides. See the
+// FormationTarif model comment in schema.prisma: a missing row for a
+// given format just means "no override, use the filiere's own
+// fraisScolarite" - getTarifs() below makes that fallback explicit
+// rather than leaving the frontend to figure it out.
+async function getTarifs(filiereId) {
+  const filiere = await getById(filiereId)
+  const overrides = await prisma.formationTarif.findMany({ where: { filiereId } })
+  const overrideByType = Object.fromEntries(overrides.map(o => [o.typeFormation, o]))
+
+  return ['JOUR', 'SOIR', 'WEEKEND', 'HYBRIDE', 'INTENSIF'].map(typeFormation => ({
+    typeFormation,
+    fraisScolarite: overrideByType[typeFormation]?.fraisScolarite ?? filiere.fraisScolarite,
+    isOverride: !!overrideByType[typeFormation]
+  }))
+}
+
+async function upsertTarif(filiereId, typeFormation, fraisScolarite) {
+  await getById(filiereId)
+  return prisma.formationTarif.upsert({
+    where: { filiereId_typeFormation: { filiereId, typeFormation } },
+    create: { filiereId, typeFormation, fraisScolarite },
+    update: { fraisScolarite }
+  })
+}
+
+// Deleting the override just reverts that format back to the filiere's
+// own fraisScolarite - not an error if there was no override to begin
+// with (idempotent "reset to default").
+async function removeTarif(filiereId, typeFormation) {
+  await prisma.formationTarif.deleteMany({ where: { filiereId, typeFormation } })
+}
+
+module.exports = {
+  getAll, getById, create, update, remove, getElevesParFiliere,
+  getTarifs, upsertTarif, removeTarif
+}
