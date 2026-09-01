@@ -12,14 +12,14 @@ fastify.register(require('@fastify/cors'), {
 
 fastify.register(require('@fastify/cookie'))
 
-// Backs logo uploads (Sprint 6 - Paramètres). 2MB cap is generous for a
-// school-logo-sized image; anything bigger is almost certainly the wrong
-// file. In production this directory is only reachable directly through
+// Backs logo uploads (Sprint 6 - Paramètres) and candidature document
+// uploads (Phase 2.2 Sprint 2 - CIN/diplôme scans, which run larger than a
+// logo). In production this directory is only reachable directly through
 // nginx's own /uploads/ alias (see docker-compose.yml on the VPS) - this
 // registration exists so local dev (no nginx in front) can serve the same
 // files the same way.
 fastify.register(require('@fastify/multipart'), {
-  limits: { fileSize: 2 * 1024 * 1024 }
+  limits: { fileSize: 5 * 1024 * 1024 }
 })
 fastify.register(require('@fastify/static'), {
   root: path.join(__dirname, '..', 'uploads'),

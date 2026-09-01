@@ -32,5 +32,33 @@ module.exports = {
       ? req.query.centreId || req.user.centreId
       : req.user.centreId
     return { data: await service.getStats(centreId) }
+  },
+
+  async getDocuments(req, reply) {
+    return { data: await service.getDocuments(req.params.id) }
+  },
+
+  async addDocument(req, reply) {
+    const file = await req.file()
+    if (!file) return reply.status(400).send({ message: 'Aucun fichier reçu' })
+    const type = file.fields?.type?.value || 'AUTRE'
+    const buffer = await file.toBuffer()
+    const data = await service.addDocument(req.params.id, {
+      type, buffer, mimetype: file.mimetype, originalFilename: file.filename
+    })
+    return reply.status(201).send({ data })
+  },
+
+  async getEvenements(req, reply) {
+    return { data: await service.getEvenements(req.params.id) }
+  },
+
+  async addMessage(req, reply) {
+    const data = await service.addMessage(req.params.id, {
+      message: req.body.message,
+      auteurId: req.user.id,
+      auteurRole: 'STAFF'
+    })
+    return reply.status(201).send({ data })
   }
 }

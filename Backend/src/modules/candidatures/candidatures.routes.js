@@ -46,6 +46,19 @@ async function candidaturesRoutes(fastify) {
     f.patch('/:id/statut', {
       preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
     }, ctrl.updateStatut)
+
+    // Sprint 2 (Phase 2.2) - candidat-uploaded documents and the
+    // message/status-timeline feed, staff side. Candidat side is the
+    // mirror of these under /api/portal (see portal.routes.js), scoped to
+    // the caller's own candidature there instead of an :id param.
+    f.get('/:id/documents',  ctrl.getDocuments)
+    f.post('/:id/documents', {
+      preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+    }, ctrl.addDocument)
+    f.get('/:id/evenements',  ctrl.getEvenements)
+    f.post('/:id/evenements', {
+      preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+    }, ctrl.addMessage)
   })
 }
 

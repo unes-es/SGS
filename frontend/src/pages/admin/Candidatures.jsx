@@ -255,6 +255,105 @@ function ConvertirEleveModal({ candidature, onClose }) {
 }
 
 // ── DETAIL PANEL ───────────────────────────────────
+const DOCUMENT_TYPE_LABELS = { CIN: 'CIN', DIPLOME: 'Diplôme', PHOTO: 'Photo', AUTRE: 'Autre' }
+
+function CandidatureDocuments({ candidatureId }) {
+  const { data } = useQuery({
+    queryKey: ['candidature-documents', candidatureId],
+    queryFn: () => candidaturesApi.getDocuments(candidatureId),
+  })
+  const documents = data?.data?.data || []
+
+  if (documents.length === 0) return null
+
+  return (
+    <div>
+      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Documents reçus</div>
+      <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+        {documents.map(doc => (
+          <div key={doc.id} className="flex items-center justify-between text-sm">
+            <span className="text-gray-700">
+              <span className="font-semibold">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</span>
+              {' — '}{doc.nomFichier}
+            </span>
+            <a href={doc.fichierUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs shrink-0 ml-2">
+              Voir
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CandidatureEvenements({ candidatureId }) {
+  const qc = useQueryClient()
+  const [message, setMessage] = useState('')
+
+  const { data } = useQuery({
+    queryKey: ['candidature-evenements', candidatureId],
+    queryFn: () => candidaturesApi.getEvenements(candidatureId),
+  })
+  const evenements = data?.data?.data || []
+
+  const { mutate: send, isPending } = useMutation({
+    mutationFn: (msg) => candidaturesApi.addMessage(candidatureId, msg),
+    onSuccess: () => {
+      setMessage('')
+      qc.invalidateQueries({ queryKey: ['candidature-evenements', candidatureId] })
+    }
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!message.trim()) return
+    send(message.trim())
+  }
+
+  return (
+    <div>
+      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Messages</div>
+      <div className="bg-gray-50 rounded-xl p-3">
+        {evenements.length === 0 ? (
+          <p className="text-xs text-gray-400">Aucun échange pour le moment.</p>
+        ) : (
+          <div className="space-y-2 max-h-56 overflow-y-auto mb-2">
+            {evenements.map(ev => (
+              ev.type === 'STATUT_CHANGE' ? (
+                <div key={ev.id} className="text-center text-[11px] text-gray-400 py-0.5">
+                  {ev.message}
+                </div>
+              ) : (
+                <div key={ev.id} className={`flex ${ev.auteurRole === 'STAFF' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-xl px-3 py-1.5 text-xs ${
+                    ev.auteurRole === 'STAFF' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-800'
+                  }`}>
+                    {ev.message}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Répondre au candidat..."
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-blue-500"
+          />
+          <button
+            type="submit"
+            disabled={isPending || !message.trim()}
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 transition">
+            Envoyer
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function CandidaturePanel({ candidature, onClose }) {
   const qc = useQueryClient()
   const [noteInterne, setNoteInterne] = useState(candidature.noteInterne || '')
@@ -322,6 +421,12 @@ function CandidaturePanel({ candidature, onClose }) {
             </div>
           </div>
         )}
+
+        {/* Documents (Sprint 2 - candidat uploads) */}
+        <CandidatureDocuments candidatureId={candidature.id} />
+
+        {/* Messages + status timeline (Sprint 2) */}
+        <CandidatureEvenements candidatureId={candidature.id} />
 
         {/* Note interne */}
         <div>

@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState, useRef } from 'react'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { portalApi } from '../../api/portal'
 import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
@@ -16,12 +18,18 @@ const STATUT_COLORS = {
   ACCEPTEE: 'bg-green-100 text-green-700',
   REFUSEE: 'bg-red-100 text-red-700',
 }
+const DOCUMENT_TYPES = [
+  { value: 'CIN', label: 'CIN' },
+  { value: 'DIPLOME', label: 'Diplôme' },
+  { value: 'PHOTO', label: 'Photo' },
+  { value: 'AUTRE', label: 'Autre' },
+]
 
 // Minimal landing dashboard - Sprint 1 needed something real behind login
 // to actually prove the auth works end to end, not just a placeholder.
-// The fuller candidat dashboard (doc upload, messages, status timeline)
-// is Sprint 2; the fuller student dashboard (notes/absences/emploi du
-// temps/paiements) is Sprint 3 - both still ahead, this only shows status.
+// Sprint 2 (this pass) adds document upload + the message/status timeline
+// for CANDIDAT accounts. The fuller student dashboard (notes/absences/
+// emploi du temps/paiements) is Sprint 3, still ahead.
 export default function PortailPage() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
@@ -61,7 +69,7 @@ export default function PortailPage() {
         </button>
       </header>
 
-      <main className="max-w-lg mx-auto p-4 pt-8">
+      <main className="max-w-lg mx-auto p-4 pt-8 pb-16">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Bonjour {user?.prenom} 👋</h1>
 
         {isEtudiant ? (
@@ -87,24 +95,172 @@ export default function PortailPage() {
             {candLoading ? (
               <div className="text-sm text-gray-400">Chargement...</div>
             ) : candidature ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Statut</span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUT_COLORS[candidature.statut]}`}>
-                    {STATUT_LABELS[candidature.statut]}
-                  </span>
+              <>
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Statut</span>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUT_COLORS[candidature.statut]}`}>
+                      {STATUT_LABELS[candidature.statut]}
+                    </span>
+                  </div>
+                  <Row label="Centre" value={candidature.centre?.nom} />
+                  {candidature.filiere && <Row label="Filière" value={candidature.filiere.nom} />}
+                  <Row label="Soumise le" value={new Date(candidature.createdAt).toLocaleDateString('fr-FR')} />
                 </div>
-                <Row label="Centre" value={candidature.centre?.nom} />
-                {candidature.filiere && <Row label="Filière" value={candidature.filiere.nom} />}
-                <Row label="Soumise le" value={new Date(candidature.createdAt).toLocaleDateString('fr-FR')} />
-              </div>
+
+                <DocumentsSection />
+                <MessagesSection />
+              </>
             ) : (
               <Empty text="Aucune candidature trouvée sur ce compte." />
             )}
-            <p className="text-xs text-gray-400 mt-4">Envoi de documents et messagerie avec le secrétariat arrivent bientôt.</p>
           </>
         )}
       </main>
+    </div>
+  )
+}
+
+function DocumentsSection() {
+  const queryClient = useQueryClient()
+  const fileInputRef = useRef(null)
+  const [pendingType, setPendingType] = useState(null)
+
+  const { data } = useQuery({
+    queryKey: ['portal-documents'],
+    queryFn: portalApi.getMyDocuments,
+  })
+  const documents = data?.data?.data || []
+
+  const { mutate: upload, isPending } = useMutation({
+    mutationFn: ({ file, type }) => portalApi.addMyDocument(file, type),
+    onSuccess: () => {
+      toast.success('Document envoyé')
+      queryClient.invalidateQueries({ queryKey: ['portal-documents'] })
+    },
+    onSettled: () => setPendingType(null)
+  })
+
+  const handlePick = (type) => {
+    setPendingType(type)
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !pendingType) return
+    upload({ file, type: pendingType })
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 mt-4">
+      <h2 className="text-sm font-bold text-gray-900 mb-3">Documents</h2>
+
+      <input ref={fileInputRef} type="file" className="hidden" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={handleFileChange} />
+
+      <div className="flex flex-wrap gap-2 mb-3">
+        {DOCUMENT_TYPES.map(t => (
+          <button
+            key={t.value}
+            onClick={() => handlePick(t.value)}
+            disabled={isPending}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 transition"
+          >
+            {isPending && pendingType === t.value ? 'Envoi...' : `+ ${t.label}`}
+          </button>
+        ))}
+      </div>
+
+      {documents.length === 0 ? (
+        <p className="text-xs text-gray-400">Aucun document envoyé pour le moment.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {documents.map(doc => (
+            <li key={doc.id} className="flex items-center justify-between text-xs">
+              <span className="text-gray-600">
+                <span className="font-medium text-gray-900">{DOCUMENT_TYPES.find(t => t.value === doc.type)?.label || doc.type}</span>
+                {' — '}{doc.nomFichier}
+              </span>
+              <a href={doc.fichierUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline shrink-0 ml-2">
+                Voir
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function MessagesSection() {
+  const queryClient = useQueryClient()
+  const [message, setMessage] = useState('')
+
+  const { data } = useQuery({
+    queryKey: ['portal-evenements'],
+    queryFn: portalApi.getMyEvenements,
+  })
+  const evenements = data?.data?.data || []
+
+  const { mutate: send, isPending } = useMutation({
+    mutationFn: (msg) => portalApi.addMyMessage(msg),
+    onSuccess: () => {
+      setMessage('')
+      queryClient.invalidateQueries({ queryKey: ['portal-evenements'] })
+    }
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!message.trim()) return
+    send(message.trim())
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5 mt-4">
+      <h2 className="text-sm font-bold text-gray-900 mb-3">Messages avec le secrétariat</h2>
+
+      {evenements.length === 0 ? (
+        <p className="text-xs text-gray-400 mb-3">Aucun message pour le moment.</p>
+      ) : (
+        <div className="space-y-2 mb-3 max-h-64 overflow-y-auto">
+          {evenements.map(ev => (
+            ev.type === 'STATUT_CHANGE' ? (
+              <div key={ev.id} className="text-center text-[11px] text-gray-400 py-1">
+                {ev.message} · {new Date(ev.createdAt).toLocaleDateString('fr-FR')}
+              </div>
+            ) : (
+              <div key={ev.id} className={`flex ${ev.auteurRole === 'CANDIDAT' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
+                  ev.auteurRole === 'CANDIDAT' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'
+                }`}>
+                  <p>{ev.message}</p>
+                  <p className={`text-[10px] mt-1 ${ev.auteurRole === 'CANDIDAT' ? 'text-blue-100' : 'text-gray-400'}`}>
+                    {new Date(ev.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Écrire un message..."
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+        />
+        <button
+          type="submit"
+          disabled={isPending || !message.trim()}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-4 transition"
+        >
+          Envoyer
+        </button>
+      </form>
     </div>
   )
 }

@@ -117,6 +117,22 @@ enum TypeNotification {
   SYSTEME
 }
 
+enum TypeCandidatureDocument {
+  CIN
+  DIPLOME
+  PHOTO
+  AUTRE
+}
+
+// MESSAGE = a real message from either side. STATUT_CHANGE = an automatic
+// system entry logged whenever updateStatut() runs, so the portal timeline
+// (Sprint 2) shows status changes and messages interleaved in one feed
+// instead of two separate widgets.
+enum TypeEvenementCandidature {
+  MESSAGE
+  STATUT_CHANGE
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -513,10 +529,52 @@ model Candidature {
   filiere         Filiere?           @relation(fields: [filiereId], references: [id])
   traiteParUser   Utilisateur?       @relation(fields: [traitePar], references: [id])
   candidatUser    Utilisateur?       @relation("CandidatUser", fields: [candidatUserId], references: [id])
+  documents       CandidatureDocument[]
+  evenements      CandidatureEvenement[]
 
   @@index([centreId])
   @@index([statut])
   @@map("candidatures")
+}
+
+// Documents a candidat uploads against their own submission (CIN, diplôme,
+// photo) - deliberately separate from the `Document` model, which is for
+// staff-generated PDFs (attestations, reçus) with their own QR-verification
+// flow. This is raw candidat-supplied files, nothing generated.
+model CandidatureDocument {
+  id            String                   @id @default(uuid())
+  candidatureId String
+  type          TypeCandidatureDocument
+  nomFichier    String
+  fichierUrl    String
+  createdAt     DateTime                 @default(now())
+
+  candidature   Candidature              @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+
+  @@index([candidatureId])
+  @@map("candidature_documents")
+}
+
+// One feed for both real messages (candidat <-> secrétariat) and automatic
+// status-change entries - see TypeEvenementCandidature above.
+model CandidatureEvenement {
+  id            String                    @id @default(uuid())
+  candidatureId String
+  type          TypeEvenementCandidature  @default(MESSAGE)
+  // Utilisateur id of whoever sent it - a staff member for staff messages,
+  // the candidatUser for candidat messages, null for a system-logged
+  // STATUT_CHANGE entry with no specific actor worth naming.
+  auteurId      String?
+  auteurRole    String?                   // 'STAFF' | 'CANDIDAT' - avoids a join just to know which side sent it
+  message       String
+  ancienStatut  StatutCandidature?
+  nouveauStatut StatutCandidature?
+  createdAt     DateTime                  @default(now())
+
+  candidature   Candidature               @relation(fields: [candidatureId], references: [id], onDelete: Cascade)
+
+  @@index([candidatureId])
+  @@map("candidature_evenements")
 }
 
 model Notification {

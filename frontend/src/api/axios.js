@@ -29,8 +29,12 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.accessToken}`
         return api(original)
       } catch {
+        // Portal (CANDIDAT/ETUDIANT) sessions must bounce to their own
+        // login, not the admin one - this interceptor is shared by both
+        // apps (see App.jsx), so it can't assume the caller was staff.
+        const isPortalUser = ['CANDIDAT', 'ETUDIANT'].includes(useAuthStore.getState().user?.role)
         useAuthStore.getState().logout()
-        window.location.href = '/admin/login'
+        window.location.href = isPortalUser ? '/candidat/login' : '/admin/login'
         return Promise.reject(err)
       }
     }

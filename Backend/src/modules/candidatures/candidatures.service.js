@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { sendEmail, wrapEmail } = require('../../utils/mailer')
 
 async function getAll({ centreId, statut, page = 1, limit = 20 }) {
   const skip = (page - 1) * limit
@@ -39,9 +40,17 @@ async function getById(id) {
   return c
 }
 
+const STATUT_LABELS = {
+  EN_ATTENTE: 'En attente',
+  EN_COURS: "En cours d'étude",
+  ACCEPTEE: 'Acceptée',
+  REFUSEE: 'Refusée'
+}
+
 async function updateStatut(id, { statut, noteInterne }, traitePar) {
-  await getById(id)
-  return prisma.candidature.update({
+  const before = await getById(id)
+
+  const updated = await prisma.candidature.update({
     where: { id },
     data: {
       statut,
@@ -54,6 +63,128 @@ async function updateStatut(id, { statut, noteInterne }, traitePar) {
       traiteParUser: { select: { prenom: true, nom: true } }
     }
   })
+
+  // Log a timeline entry whenever the status actually changes (not on a
+  // noteInterne-only edit) and best-effort notify the candidat by email -
+  // same "never let a mailer hiccup fail the real operation" pattern as
+  // linkCandidatAccount in create() below.
+  if (statut && statut !== before.statut) {
+    await prisma.candidatureEvenement.create({
+      data: {
+        candidatureId: id,
+        type: 'STATUT_CHANGE',
+        auteurId: traitePar,
+        auteurRole: 'STAFF',
+        message: `Statut changé de "${STATUT_LABELS[before.statut]}" à "${STATUT_LABELS[statut]}"`,
+        ancienStatut: before.statut,
+        nouveauStatut: statut
+      }
+    })
+
+    if (updated.candidatUserId) {
+      try {
+        const candidatUser = await prisma.utilisateur.findUnique({ where: { id: updated.candidatUserId } })
+        if (candidatUser) {
+          await sendEmail({
+            to: candidatUser.email,
+            subject: `Votre candidature SGS — ${STATUT_LABELS[statut]}`,
+            html: wrapEmail(
+              'Mise à jour de votre candidature',
+              `<p>Bonjour ${updated.prenom},</p><p>Le statut de votre candidature est maintenant : <strong>${STATUT_LABELS[statut]}</strong>.</p><p><a href="${process.env.FRONTEND_URL}/portail">Voir mon espace</a></p>`
+            )
+          })
+        }
+      } catch (err) {
+        console.error('status-change email failed:', err)
+      }
+    }
+  }
+
+  return updated
+}
+
+// Shared by both the staff-facing (candidatures.routes.js) and candidat-
+// facing (portal.routes.js) endpoints - the caller is responsible for
+// authorizing *which* candidature the requester may touch (staff: any
+// within their centre; candidat: only their own, enforced in
+// portal.service.js), this function itself doesn't re-check that.
+async function getDocuments(candidatureId) {
+  return prisma.candidatureDocument.findMany({
+    where: { candidatureId },
+    orderBy: { createdAt: 'desc' }
+  })
+}
+
+const fs = require('fs/promises')
+const path = require('path')
+const crypto = require('crypto')
+
+const CANDIDATURE_UPLOADS_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'candidatures')
+const ALLOWED_DOCUMENT_TYPES = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf'
+}
+
+async function addDocument(candidatureId, { type, buffer, mimetype, originalFilename }) {
+  await getById(candidatureId)
+
+  const ext = ALLOWED_DOCUMENT_TYPES[mimetype]
+  if (!ext) {
+    throw { statusCode: 400, message: 'Format non supporté (PNG, JPEG, WEBP ou PDF uniquement)' }
+  }
+
+  const filename = `${candidatureId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.${ext}`
+  await fs.mkdir(CANDIDATURE_UPLOADS_DIR, { recursive: true })
+  await fs.writeFile(path.join(CANDIDATURE_UPLOADS_DIR, filename), buffer)
+
+  return prisma.candidatureDocument.create({
+    data: {
+      candidatureId,
+      type,
+      nomFichier: originalFilename || filename,
+      fichierUrl: `/uploads/candidatures/${filename}`
+    }
+  })
+}
+
+async function getEvenements(candidatureId) {
+  return prisma.candidatureEvenement.findMany({
+    where: { candidatureId },
+    orderBy: { createdAt: 'asc' }
+  })
+}
+
+async function addMessage(candidatureId, { message, auteurId, auteurRole }) {
+  const candidature = await getById(candidatureId)
+
+  const evenement = await prisma.candidatureEvenement.create({
+    data: { candidatureId, type: 'MESSAGE', message, auteurId, auteurRole }
+  })
+
+  // Staff replying -> notify the candidat by email. Candidat messaging in
+  // -> no email (staff sees it in the admin panel, an email per message
+  // there would just be noise for an inbox they're already watching).
+  if (auteurRole === 'STAFF' && candidature.candidatUserId) {
+    try {
+      const candidatUser = await prisma.utilisateur.findUnique({ where: { id: candidature.candidatUserId } })
+      if (candidatUser) {
+        await sendEmail({
+          to: candidatUser.email,
+          subject: 'Nouveau message du secrétariat SGS',
+          html: wrapEmail(
+            'Nouveau message',
+            `<p>Bonjour ${candidature.prenom},</p><p>Le secrétariat vous a envoyé un message concernant votre candidature :</p><blockquote>${message}</blockquote><p><a href="${process.env.FRONTEND_URL}/portail">Voir mon espace</a></p>`
+          )
+        })
+      }
+    } catch (err) {
+      console.error('message-notification email failed:', err)
+    }
+  }
+
+  return evenement
 }
 
 async function getStats(centreId) {
@@ -161,4 +292,7 @@ async function create(data) {
   return candidature
 }
 
-module.exports = { getAll, getById, create, updateStatut, getStats }
+module.exports = {
+  getAll, getById, create, updateStatut, getStats,
+  getDocuments, addDocument, getEvenements, addMessage
+}
