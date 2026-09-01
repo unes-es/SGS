@@ -60,5 +60,20 @@ module.exports = {
       auteurRole: 'STAFF'
     })
     return reply.status(201).send({ data })
+  },
+
+  async updateStatutBulk(req, reply) {
+    const data = await service.updateStatutBulk(req.body.ids, { statut: req.body.statut }, req.user.id)
+    return { data }
+  },
+
+  async exportCsv(req, reply) {
+    const centreId = req.user.role === 'SUPER_ADMIN'
+      ? req.query.centreId || req.user.centreId
+      : req.user.centreId
+    const csv = await service.exportCsv({ centreId, statut: req.query.statut })
+    reply.header('Content-Type', 'text/csv; charset=utf-8')
+    reply.header('Content-Disposition', `attachment; filename="candidatures-${new Date().toISOString().slice(0, 10)}.csv"`)
+    return reply.send(csv)
   }
 }

@@ -41,11 +41,17 @@ async function candidaturesRoutes(fastify) {
   fastify.register(async function protectedRoutes(f) {
     f.addHook('preHandler', authenticate)
     f.get('/stats',      ctrl.getStats)
+    f.get('/export',     ctrl.exportCsv)
     f.get('/',           ctrl.getAll)
     f.get('/:id',        ctrl.getById)
     f.patch('/:id/statut', {
       preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
     }, ctrl.updateStatut)
+
+    // Sprint 4 (Phase 2.2) - bulk accept/refuse from the list view.
+    f.patch('/bulk/statut', {
+      preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+    }, ctrl.updateStatutBulk)
 
     // Sprint 2 (Phase 2.2) - candidat-uploaded documents and the
     // message/status-timeline feed, staff side. Candidat side is the

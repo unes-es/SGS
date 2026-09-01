@@ -40,6 +40,56 @@ async function getById(id) {
   return c
 }
 
+// Bulk accept/refuse (Sprint 4) - deliberately just N sequential calls to
+// the same updateStatut() used everywhere else, not a separate bulk
+// code path. That's what keeps the timeline-logging and candidat-email
+// side effects identical whether a candidature is actioned one at a time
+// or as part of a batch - the only difference bulk changes is the
+// caller loop, never the semantics of a single status change.
+async function updateStatutBulk(ids, { statut }, traitePar) {
+  const results = await Promise.allSettled(
+    ids.map(id => updateStatut(id, { statut }, traitePar))
+  )
+  const succeeded = results.filter(r => r.status === 'fulfilled').length
+  const failed = results.length - succeeded
+  return { succeeded, failed, total: results.length }
+}
+
+function toCsvValue(value) {
+  if (value === null || value === undefined) return ''
+  const str = String(value)
+  return /[",\n;]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+}
+
+async function exportCsv({ centreId, statut }) {
+  const where = { centreId, ...(statut && { statut }) }
+  const candidatures = await prisma.candidature.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      filiere:       { select: { nom: true } },
+      traiteParUser: { select: { prenom: true, nom: true } }
+    }
+  })
+
+  const headers = ['Prénom', 'Nom', 'Email', 'Téléphone', 'Filière', 'Statut', 'Soumise le', 'Traitée par', 'Traitée le', 'Note interne']
+  const rows = candidatures.map(c => [
+    c.prenom, c.nom, c.email, c.telephone || '',
+    c.filiere?.nom || '', STATUT_LABELS[c.statut] || c.statut,
+    c.createdAt.toLocaleDateString('fr-FR'),
+    c.traiteParUser ? `${c.traiteParUser.prenom} ${c.traiteParUser.nom}` : '',
+    c.traiteAt ? new Date(c.traiteAt).toLocaleDateString('fr-FR') : '',
+    c.noteInterne || ''
+  ])
+
+  // Excel needs a UTF-8 BOM to render accented characters (é, è...)
+  // correctly instead of mojibake - ; delimiter since Excel's default
+  // locale-based CSV import in fr-FR treats , as a decimal separator, not
+  // a field separator.
+  const lines = [headers, ...rows].map(row => row.map(toCsvValue).join(';'))
+  return '﻿' + lines.join('\r\n')
+}
+
 const STATUT_LABELS = {
   EN_ATTENTE: 'En attente',
   EN_COURS: "En cours d'étude",
@@ -188,14 +238,20 @@ async function addMessage(candidatureId, { message, auteurId, auteurRole }) {
 }
 
 async function getStats(centreId) {
-  const [total, enAttente, acceptees, refusees, enCours] = await Promise.all([
+  const [total, enAttente, acceptees, refusees, enCours, convertiesEnEleve] = await Promise.all([
     prisma.candidature.count({ where: { centreId } }),
     prisma.candidature.count({ where: { centreId, statut: 'EN_ATTENTE' } }),
     prisma.candidature.count({ where: { centreId, statut: 'ACCEPTEE' } }),
     prisma.candidature.count({ where: { centreId, statut: 'REFUSEE' } }),
     prisma.candidature.count({ where: { centreId, statut: 'EN_COURS' } }),
+    // "Converted" = the linked account was promoted all the way to
+    // ETUDIANT (see eleves.service.js's candidatureId path) - not just
+    // ACCEPTEE, since accepting a candidature and actually converting it
+    // into an élève record are two separate admin actions.
+    prisma.candidature.count({ where: { centreId, candidatUser: { role: 'ETUDIANT' } } }),
   ])
-  return { total, enAttente, acceptees, refusees, enCours }
+  const tauxConversion = total > 0 ? Math.round((convertiesEnEleve / total) * 1000) / 10 : 0
+  return { total, enAttente, acceptees, refusees, enCours, convertiesEnEleve, tauxConversion }
 }
 
 const notifService = require('../notifications/notifications.service')
@@ -294,5 +350,6 @@ async function create(data) {
 
 module.exports = {
   getAll, getById, create, updateStatut, getStats,
-  getDocuments, addDocument, getEvenements, addMessage
+  getDocuments, addDocument, getEvenements, addMessage,
+  updateStatutBulk, exportCsv
 }

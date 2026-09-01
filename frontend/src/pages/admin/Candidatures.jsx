@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { candidaturesApi } from '../../api/candidatures'
 import { toast } from 'sonner'
@@ -258,30 +258,78 @@ function ConvertirEleveModal({ candidature, onClose }) {
 const DOCUMENT_TYPE_LABELS = { CIN: 'CIN', DIPLOME: 'Diplôme', PHOTO: 'Photo', AUTRE: 'Autre' }
 
 function CandidatureDocuments({ candidatureId }) {
+  const qc = useQueryClient()
+  const fileInputRef = useRef(null)
+  const [pendingType, setPendingType] = useState(null)
+
   const { data } = useQuery({
     queryKey: ['candidature-documents', candidatureId],
     queryFn: () => candidaturesApi.getDocuments(candidatureId),
   })
   const documents = data?.data?.data || []
 
-  if (documents.length === 0) return null
+  // Sprint 4 - staff can also attach a document on the candidat's behalf
+  // (e.g. a paper submission scanned in-office), same addDocument
+  // endpoint the candidat's own portal upload uses (see
+  // candidatures.routes.js: POST /:id/documents is shared, whitelisted to
+  // SUPER_ADMIN/DIRECTEUR/SECRETAIRE).
+  const { mutate: upload, isPending } = useMutation({
+    mutationFn: ({ file, type }) => candidaturesApi.addDocument(candidatureId, file, type),
+    onSuccess: () => {
+      toast.success('Document ajouté')
+      qc.invalidateQueries({ queryKey: ['candidature-documents', candidatureId] })
+    },
+    onSettled: () => setPendingType(null)
+  })
+
+  const handlePick = (type) => {
+    setPendingType(type)
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !pendingType) return
+    upload({ file, type: pendingType })
+  }
 
   return (
     <div>
-      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Documents reçus</div>
-      <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-        {documents.map(doc => (
-          <div key={doc.id} className="flex items-center justify-between text-sm">
-            <span className="text-gray-700">
-              <span className="font-semibold">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</span>
-              {' — '}{doc.nomFichier}
-            </span>
-            <a href={doc.fichierUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs shrink-0 ml-2">
-              Voir
-            </a>
-          </div>
+      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Documents</div>
+
+      <input ref={fileInputRef} type="file" className="hidden" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={handleFileChange} />
+
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {Object.entries(DOCUMENT_TYPE_LABELS).map(([type, label]) => (
+          <button
+            key={type}
+            onClick={() => handlePick(type)}
+            disabled={isPending}
+            className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 transition"
+          >
+            {isPending && pendingType === type ? 'Envoi...' : `+ ${label}`}
+          </button>
         ))}
       </div>
+
+      {documents.length === 0 ? (
+        <p className="text-xs text-gray-400">Aucun document reçu.</p>
+      ) : (
+        <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+          {documents.map(doc => (
+            <div key={doc.id} className="flex items-center justify-between text-sm">
+              <span className="text-gray-700">
+                <span className="font-semibold">{DOCUMENT_TYPE_LABELS[doc.type] || doc.type}</span>
+                {' — '}{doc.nomFichier}
+              </span>
+              <a href={doc.fichierUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs shrink-0 ml-2">
+                Voir
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -501,6 +549,9 @@ export default function Candidatures() {
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState(null)
   const [modal, setModal] = useState(false)
+  const [checkedIds, setCheckedIds] = useState([])
+  const [bulkConfirm, setBulkConfirm] = useState(null)
+  const qc = useQueryClient()
 
   const { data: statsRes } = useQuery({
     queryKey: ['candidatures-stats', centreId],
@@ -517,6 +568,39 @@ export default function Candidatures() {
   const candidatures = data?.data?.data || []
   const meta = data?.data?.meta || {}
 
+  const { mutate: bulkUpdate, isPending: bulkPending } = useMutation({
+    mutationFn: (statutValue) => candidaturesApi.updateStatutBulk(checkedIds, statutValue),
+    onSuccess: (res) => {
+      const { succeeded, failed } = res.data.data
+      toast.success(failed ? `${succeeded} mise(s) à jour, ${failed} échec(s)` : `${succeeded} candidature(s) mise(s) à jour`)
+      setCheckedIds([])
+      setBulkConfirm(null)
+      qc.invalidateQueries({ queryKey: ['candidatures'] })
+      qc.invalidateQueries({ queryKey: ['candidatures-stats'] })
+    }
+  })
+
+  const handleExport = async () => {
+    try {
+      const res = await candidaturesApi.exportCsv({ centreId, statut: statut || undefined })
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `candidatures-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error("Erreur lors de l'export")
+    }
+  }
+
+  const toggleCheck = (id) => {
+    setCheckedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  const toggleCheckAll = () => {
+    setCheckedIds(prev => prev.length === candidatures.length ? [] : candidatures.map(c => c.id))
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -524,18 +608,25 @@ export default function Candidatures() {
           <h1 className="text-xl font-bold text-gray-900">Candidatures</h1>
           <p className="text-sm text-gray-500 mt-0.5">Inscriptions en ligne</p>
         </div>
-        <button onClick={() => setModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-          ➕ Nouvelle candidature
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExport}
+            className="bg-white border border-gray-200 hover:border-blue-300 text-gray-600 text-sm font-semibold px-4 py-2 rounded-lg transition">
+            ⬇️ Exporter
+          </button>
+          <button onClick={() => setModal(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            ➕ Nouvelle candidature
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard icon="📋" bg="bg-gray-50" label="Total" value={stats?.total ?? '—'} />
         <StatCard icon="⏳" bg="bg-amber-50" label="En attente" value={stats?.enAttente ?? '—'} />
         <StatCard icon="✅" bg="bg-emerald-50" label="Acceptées" value={stats?.acceptees ?? '—'} />
         <StatCard icon="❌" bg="bg-red-50" label="Refusées" value={stats?.refusees ?? '—'} />
+        <StatCard icon="🎓" bg="bg-blue-50" label="Taux de conversion" value={stats ? `${stats.tauxConversion}%` : '—'} />
       </div>
 
       {/* Filter */}
@@ -558,12 +649,49 @@ export default function Candidatures() {
         ))}
       </div>
 
+      {/* Bulk actions - only shown once at least one row is checked */}
+      {checkedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5">
+          <span className="text-xs font-semibold text-blue-700">{checkedIds.length} sélectionnée(s)</span>
+          <div className="flex gap-2">
+            <button onClick={() => setBulkConfirm('ACCEPTEE')} disabled={bulkPending}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+              ✅ Accepter
+            </button>
+            <button onClick={() => setBulkConfirm('REFUSEE')} disabled={bulkPending}
+              className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+              ❌ Refuser
+            </button>
+            <button onClick={() => setCheckedIds([])}
+              className="text-gray-500 hover:text-gray-700 text-xs font-semibold px-2 transition">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!bulkConfirm}
+        onClose={() => setBulkConfirm(null)}
+        onConfirm={() => bulkUpdate(bulkConfirm)}
+        danger={bulkConfirm === 'REFUSEE'}
+        title={`${bulkConfirm === 'ACCEPTEE' ? 'Accepter' : 'Refuser'} ${checkedIds.length} candidature(s)`}
+        message="Cette action mettra à jour le statut de toutes les candidatures sélectionnées."
+        confirmLabel="Confirmer"
+      />
+
       <Card>
         {isLoading ? <Spinner /> : (
           <>
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="px-5 py-3 w-10">
+                    <input type="checkbox"
+                      checked={candidatures.length > 0 && checkedIds.length === candidatures.length}
+                      onChange={toggleCheckAll}
+                      className="rounded border-gray-300" />
+                  </th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Candidat</th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Filière</th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Date</th>
@@ -576,6 +704,12 @@ export default function Candidatures() {
                   <tr key={c.id}
                     onClick={() => setSelected(c)}
                     className="border-b border-gray-50 hover:bg-gray-50 transition cursor-pointer">
+                    <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox"
+                        checked={checkedIds.includes(c.id)}
+                        onChange={() => toggleCheck(c.id)}
+                        className="rounded border-gray-300" />
+                    </td>
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-gray-900">{c.prenom} {c.nom}</div>
                       <div className="text-xs text-gray-400">{c.email}</div>
@@ -598,7 +732,7 @@ export default function Candidatures() {
                 ))}
                 {!candidatures.length && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-16 text-center">
+                    <td colSpan={6} className="px-5 py-16 text-center">
                       <div className="text-4xl mb-3">📋</div>
                       <div className="font-semibold text-gray-500">
                         {statut ? 'Aucune candidature dans ce statut' : 'Aucune candidature reçue'}

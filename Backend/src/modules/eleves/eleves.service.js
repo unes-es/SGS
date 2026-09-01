@@ -1,4 +1,6 @@
 const prisma = require('../../config/db')
+const { sendEmail, wrapEmail } = require('../../utils/mailer')
+const authService = require('../auth/auth.service')
 
 // auto-generate matricule like MAT-2026-0001
 async function generateMatricule() {
@@ -134,6 +136,39 @@ async function create(data, centreId) {
 
     return eleve
   })
+
+  // Welcome email (Sprint 4, Phase 2.2) - best-effort, never blocks the
+  // élève record from being created over a mailer hiccup, same pattern as
+  // every other email send in this codebase (see mailer.js/candidatures
+  // .service.js).
+  try {
+    if (linkedCandidatUserId) {
+      // Already has a working password from their CANDIDAT account - a
+      // "set your password" link would be wrong here, they don't need
+      // one. Just tell them they're enrolled.
+      await sendEmail({
+        to: email,
+        subject: 'Bienvenue à SGS — votre inscription est confirmée',
+        html: wrapEmail(
+          'Inscription confirmée',
+          `<p>Bonjour ${prenom},</p><p>Votre inscription est confirmée. Votre matricule est <strong>${matricule}</strong>.</p><p>Connectez-vous avec vos identifiants habituels sur <a href="${process.env.FRONTEND_URL}/candidat/login">votre espace</a> pour suivre vos notes, absences et paiements.</p>`
+        )
+      })
+    } else {
+      // Brand new account, no prior CANDIDAT password to reuse - same
+      // "set your password" token mechanism as linkCandidatAccount's
+      // welcome email in candidatures.service.js, just framed for a
+      // directly-created élève instead.
+      const rawToken = await authService.issueResetToken(result.utilisateurId)
+      await authService.sendResetEmail(
+        { email, prenom },
+        rawToken,
+        { purpose: 'welcome-eleve' }
+      )
+    }
+  } catch (err) {
+    console.error('eleve welcome email failed:', err)
+  }
 
   return result
 }
