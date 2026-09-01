@@ -98,13 +98,17 @@ async function issueResetToken(userId, { purpose = 'reset' } = {}) {
 
 async function sendResetEmail(user, rawToken, { purpose = 'reset' } = {}) {
   const link = `${FRONTEND_URL}/reset-password/${rawToken}`
-  const isFirstSet = purpose === 'welcome' || purpose === 'welcome-eleve'
+  const isFirstSet = purpose === 'welcome' || purpose === 'welcome-eleve' || purpose === 'welcome-staff'
   const title = isFirstSet ? 'Bienvenue sur SGS' : 'Réinitialisation de mot de passe'
   const intro = purpose === 'welcome-eleve'
     // Directly-enrolled élève with no prior CANDIDAT account behind it
     // (see eleves.service.js's create()) - the candidature-specific copy
     // below would be misleading here, there was no candidature.
     ? `Bonjour ${user.prenom}, votre inscription à SGS est confirmée. Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace élève.`
+    : purpose === 'welcome-staff'
+    // New hire (personnel.service.js) with no explicit password set by
+    // the admin who created their account.
+    ? `Bonjour ${user.prenom}, votre compte SGS a été créé. Cliquez ci-dessous pour choisir votre mot de passe et accéder à votre espace.`
     : purpose === 'welcome'
     ? `Bonjour ${user.prenom}, votre candidature a bien été enregistrée. Cliquez ci-dessous pour créer votre mot de passe et suivre son avancement.`
     : `Bonjour ${user.prenom}, cliquez ci-dessous pour choisir un nouveau mot de passe. Ce lien expire dans 48 heures.`

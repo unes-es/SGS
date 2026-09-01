@@ -19,6 +19,14 @@ const CONTRAT_COLORS = {
 
 const TYPES_CONTRAT = ['PERMANENT', 'VACATAIRE', 'ADMINISTRATIF', 'STAGIAIRE']
 
+// Login access level - separate from `poste` (job title, free text).
+// Used to not exist on this form at all: every hire got hardcoded to
+// PROFESSEUR server-side regardless of poste, so an accountant or a
+// director ended up with a professeur-level login. SUPER_ADMIN isn't
+// offered here - granting that stays a separate, deliberate action.
+const ROLES = ['PROFESSEUR', 'SECRETAIRE', 'COMPTABLE', 'DIRECTEUR']
+const ROLE_LABELS = { PROFESSEUR: 'Professeur', SECRETAIRE: 'Secrétaire', COMPTABLE: 'Comptable', DIRECTEUR: 'Directeur' }
+
 // ── MODAL ──────────────────────────────────────────
 function PersonnelModal({ membre, onClose, centreId }) {
   const qc = useQueryClient()
@@ -31,6 +39,7 @@ function PersonnelModal({ membre, onClose, centreId }) {
     telephone: membre?.utilisateur?.telephone || '',
     typeContrat: membre?.typeContrat || 'PERMANENT',
     poste: membre?.poste || '',
+    role: membre?.utilisateur?.role || 'PROFESSEUR',
     dateEmbauche: membre?.dateEmbauche?.slice(0, 10) || '',
     salaireBase: membre?.salaireBase || '',
     tauxHoraire: membre?.tauxHoraire || '',
@@ -104,6 +113,15 @@ function PersonnelModal({ membre, onClose, centreId }) {
             <Field label="Poste *" value={form.poste} onChange={v => set('poste', v)} />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Accès (rôle de connexion) *</label>
+            <select value={form.role} onChange={e => set('role', e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Détermine ce que ce compte peut voir et faire dans SGS — distinct du "Poste" ci-dessus.</p>
+          </div>
+
           <Field label="Date d'embauche *" type="date" value={form.dateEmbauche} onChange={v => set('dateEmbauche', v)} />
 
           <div className="grid grid-cols-2 gap-3">
@@ -175,8 +193,11 @@ function PersonnelPanel({ membre, onClose, onEdit }) {
           {detail.utilisateur?.prenom} {detail.utilisateur?.nom}
         </div>
         <div className="text-gray-400 text-sm mt-1">{detail.poste}</div>
-        <div className="mt-3">
+        <div className="mt-3 flex justify-center gap-1.5">
           <Badge label={detail.typeContrat} variant={CONTRAT_COLORS[detail.typeContrat]} />
+          {detail.utilisateur?.role && (
+            <Badge label={ROLE_LABELS[detail.utilisateur.role] || detail.utilisateur.role} variant="blue" />
+          )}
         </div>
       </div>
 
@@ -356,7 +377,12 @@ export default function Personnel() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-gray-600">{m.poste}</td>
+                  <td className="px-5 py-3.5 text-gray-600">
+                    {m.poste}
+                    {m.utilisateur?.role && (
+                      <div className="text-xs text-gray-400 mt-0.5">{ROLE_LABELS[m.utilisateur.role] || m.utilisateur.role}</div>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5">
                     <Badge label={m.typeContrat} variant={CONTRAT_COLORS[m.typeContrat]} />
                   </td>

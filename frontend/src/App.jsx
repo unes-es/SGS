@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 
 import { Suspense, lazy, useEffect } from 'react'
 import { authApi } from './api/auth'
+import usePageTitle from './hooks/usePageTitle'
 
 // layouts
 import PublicLayout from './components/layout/PublicLayout'
@@ -110,9 +111,17 @@ const RouteFallback = () => (
   </div>
 )
 
+// Just a hook call - usePageTitle needs Router context (useLocation),
+// which App() itself doesn't have at the point it renders <BrowserRouter>.
+function PageTitleEffect() {
+  usePageTitle()
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <PageTitleEffect />
       <AuthInit>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
