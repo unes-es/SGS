@@ -179,7 +179,10 @@ function ConvertirEleveModal({ candidature, onClose }) {
       return
     }
     setError('')
-    mutate(form)
+    // candidatureId (Phase 2.2): lets the backend reuse this candidature's
+    // already-linked CANDIDAT account (promoted to ETUDIANT) instead of
+    // creating a brand new, duplicate Utilisateur - see eleves.service.js.
+    mutate({ ...form, candidatureId: candidature.id })
   }
 
   return (

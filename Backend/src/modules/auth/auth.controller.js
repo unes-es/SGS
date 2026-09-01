@@ -15,8 +15,11 @@ async function loginHandler(req, reply) {
 
   reply.setCookie('refreshToken', refreshToken, {
     httpOnly: true,
-//    secure: process.env.NODE_ENV === 'production',
-    secure: false, // temp until we add SSL
+    // Was hardcoded false "temp until we add SSL" - SSL's been live on
+    // sgs.nextsi.ma for a while now (see docs/DEPLOYMENT.md), this was
+    // just never flipped back. secure:false meant this cookie was sent
+    // over plain HTTP too, not just HTTPS.
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/api/auth/refresh',
     maxAge: 7 * 24 * 60 * 60 // 7 days in seconds
@@ -58,10 +61,24 @@ async function getMeHandler(req, reply) {
   return { user }
 }
 
+async function forgotPasswordHandler(req, reply) {
+  await authService.requestPasswordReset(req.body.email)
+  // Always the same response regardless of whether the email exists -
+  // see the "deliberately no distinction" comment in auth.service.js.
+  return { message: 'Si ce compte existe, un email a été envoyé.' }
+}
+
+async function resetPasswordHandler(req, reply) {
+  await authService.resetPassword(req.body.token, req.body.password)
+  return { message: 'Mot de passe mis à jour' }
+}
+
 module.exports = {
   loginHandler,
   registerHandler,
   refreshHandler,
   logoutHandler,
-  getMeHandler
+  getMeHandler,
+  forgotPasswordHandler,
+  resetPasswordHandler
 }

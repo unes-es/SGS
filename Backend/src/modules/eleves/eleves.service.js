@@ -69,21 +69,54 @@ async function getById(id) {
 }
 
 async function create(data, centreId) {
-  const { email, password, prenom, nom, telephone, ...eleveData } = data
-
-  // check email not taken
-  const exists = await prisma.utilisateur.findUnique({ where: { email } })
-  if (exists) throw { statusCode: 409, message: 'Email déjà utilisé' }
-
+  // candidatureId (Phase 2.2): when this élève is being created by
+  // ConvertirEleveModal from an accepted candidature, the candidature
+  // already has a CANDIDAT Utilisateur account linked to it (auto-created
+  // on submission - see candidatures.service.js). That account should
+  // become this élève's account (converted to ETUDIANT), not be silently
+  // abandoned in favor of a brand new duplicate one - the whole point is
+  // one continuous account/login across the admissions-to-enrollment
+  // lifecycle. Not passed at all for a directly-created élève with no
+  // candidature behind it.
+  const { email, password, prenom, nom, telephone, candidatureId, ...eleveData } = data
   const bcrypt = require('bcrypt')
-  const matricule = await generateMatricule()
-  const passwordHash = await bcrypt.hash(password || matricule, 12)
 
-  // create utilisateur + eleve in one transaction
-  const result = await prisma.$transaction(async (tx) => {
-    const user = await tx.utilisateur.create({
-      data: { email, passwordHash, role: 'PARENT', prenom, nom, telephone, centreId }
+  let linkedCandidatUserId = null
+  if (candidatureId) {
+    const candidature = await prisma.candidature.findUnique({
+      where: { id: candidatureId },
+      select: { candidatUserId: true }
     })
+    linkedCandidatUserId = candidature?.candidatUserId || null
+  }
+
+  const exists = await prisma.utilisateur.findUnique({ where: { email } })
+  // A match is only an error if it's a DIFFERENT account than the one
+  // we're about to reuse - finding the candidate's own account by its own
+  // email is expected, not a conflict.
+  if (exists && exists.id !== linkedCandidatUserId) {
+    throw { statusCode: 409, message: 'Email déjà utilisé' }
+  }
+
+  const matricule = await generateMatricule()
+
+  const result = await prisma.$transaction(async (tx) => {
+    const user = linkedCandidatUserId
+      ? await tx.utilisateur.update({
+          where: { id: linkedCandidatUserId },
+          // Refresh with whatever the admin confirmed/corrected in the
+          // conversion form, and promote the role - everything else
+          // (passwordHash, resetTokenHash if a "set password" email was
+          // never followed) is left untouched.
+          data: { email, prenom, nom, telephone, centreId, role: 'ETUDIANT' }
+        })
+      : await tx.utilisateur.create({
+          data: {
+            email, prenom, nom, telephone, centreId,
+            role: 'ETUDIANT',
+            passwordHash: await bcrypt.hash(password || matricule, 12)
+          }
+        })
 
     const eleve = await tx.eleve.create({
     data: {

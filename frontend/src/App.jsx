@@ -22,6 +22,14 @@ import LoginPage from './pages/admin/LoginPage'
 // under /admin, kept eager for the same reason LandingPage is: it's often
 // the first (and only) page a given visitor ever loads on this site.
 import Verify from './pages/public/Verify'
+// Candidat/Étudiant portal (Phase 2.2) - all reached either directly (email
+// links) or as a first landing page, same "kept eager" reasoning as above.
+// Distinct from the existing /admin/portail "Soon" placeholder, which is
+// the still-deferred Portail Parents, not this.
+import CandidatLoginPage from './pages/portal/CandidatLoginPage'
+import ForgotPasswordPage from './pages/portal/ForgotPasswordPage'
+import ResetPasswordPage from './pages/portal/ResetPasswordPage'
+import PortailPage from './pages/portal/PortailPage'
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Eleves = lazy(() => import('./pages/admin/Eleves'))
 const Absences = lazy(() => import('./pages/admin/Absences'))
@@ -42,6 +50,25 @@ function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
 
   if (!user) return <Navigate to="/admin/login" replace />
+  if (!accessToken) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )
+
+  return children
+}
+
+// Same shape as ProtectedRoute, but for the external CANDIDAT/ETUDIANT
+// portal rather than staff - a staff member hitting /portail (or a
+// candidat somehow hitting /admin) gets redirected to their own login,
+// not just refused, since the wrong login page is the actual mistake.
+function PortalRoute({ children }) {
+  const { accessToken, user } = useAuthStore()
+
+  if (!user || !['CANDIDAT', 'ETUDIANT'].includes(user.role)) {
+    return <Navigate to="/candidat/login" replace />
+  }
   if (!accessToken) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="w-7 h-7 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -99,6 +126,16 @@ export default function App() {
 
             {/* Document verification — no layout, no auth */}
             <Route path="/verify/:numeroSerie" element={<Verify />} />
+
+            {/* Candidat/Étudiant portal (Phase 2.2) */}
+            <Route path="/candidat/login" element={<CandidatLoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/portail" element={
+              <PortalRoute>
+                <PortailPage />
+              </PortalRoute>
+            } />
 
             {/* Admin — protected */}
             <Route path="/admin" element={

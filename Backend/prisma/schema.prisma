@@ -22,6 +22,13 @@ enum Role {
   SECRETAIRE
   PROFESSEUR
   PARENT
+  // Phase 2.2 - external self-service accounts, not staff. CANDIDAT is
+  // auto-created when a candidature is submitted; on acceptance that same
+  // account converts to ETUDIANT (see candidatures.service.js) rather than
+  // a fresh Utilisateur being created, so a candidate keeps one continuous
+  // account/login across the whole admissions-to-enrollment lifecycle.
+  CANDIDAT
+  ETUDIANT
 }
 
 enum StatutEleve {
@@ -153,6 +160,13 @@ model Utilisateur {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Password-reset / first-login "set your password" flow (Phase 2.2).
+  // Hashed, not the raw token - only the hash is stored, same reasoning
+  // as passwordHash itself: a DB dump alone shouldn't hand out working
+  // reset links. Nulled out again once used or once a new one is issued.
+  resetTokenHash    String?   @unique
+  resetTokenExpires DateTime?
+
   centre       Centre   @relation(fields: [centreId], references: [id])
   eleve        Eleve?
   personnel    Personnel?
@@ -163,6 +177,10 @@ model Utilisateur {
   paiementsEncaisses PaiementEleve[]
   candidaturesTreatees Candidature[]
   notifications   Notification[]
+  // The candidature(s) this account submitted, if it's a CANDIDAT/ETUDIANT
+  // account - distinct from candidaturesTreatees (staff processing OTHER
+  // people's candidatures).
+  candidaturesSoumises Candidature[] @relation("CandidatUser")
 
   @@index([centreId])
   @@map("utilisateurs")
@@ -485,10 +503,16 @@ model Candidature {
   traiteAt        DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+  // The CANDIDAT (later ETUDIANT) account tied to this submission - null
+  // for candidatures created before Phase 2.2, or in the rare case account
+  // auto-creation was skipped (see candidatures.service.js: the submitted
+  // email already belonged to a non-candidat account, e.g. staff).
+  candidatUserId  String?
 
   centre          Centre             @relation(fields: [centreId], references: [id])
   filiere         Filiere?           @relation(fields: [filiereId], references: [id])
   traiteParUser   Utilisateur?       @relation(fields: [traitePar], references: [id])
+  candidatUser    Utilisateur?       @relation("CandidatUser", fields: [candidatUserId], references: [id])
 
   @@index([centreId])
   @@index([statut])

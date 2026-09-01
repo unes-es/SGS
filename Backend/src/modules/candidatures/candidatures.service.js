@@ -68,6 +68,41 @@ async function getStats(centreId) {
 }
 
 const notifService = require('../notifications/notifications.service')
+const authService = require('../auth/auth.service')
+const bcrypt = require('bcrypt')
+
+// Auto-creates (or reuses) the CANDIDAT account tied to a candidature
+// (Phase 2.2). Returns the linked Utilisateur id, or null if account
+// creation was deliberately skipped.
+async function linkCandidatAccount({ email, prenom, nom, telephone, centreId }) {
+  const existing = await prisma.utilisateur.findUnique({ where: { email } })
+
+  if (!existing) {
+    // Random, never-communicated password - the account is only usable
+    // once the candidate follows the "set your password" email link
+    // (issueResetToken/sendResetEmail), same reset-token mechanism as
+    // forgot-password, just framed as a welcome email instead.
+    const passwordHash = await bcrypt.hash(require('crypto').randomBytes(32).toString('hex'), 12)
+    const user = await prisma.utilisateur.create({
+      data: { email, passwordHash, role: 'CANDIDAT', prenom, nom, telephone, centreId }
+    })
+    const rawToken = await authService.issueResetToken(user.id)
+    await authService.sendResetEmail(user, rawToken, { purpose: 'welcome' })
+    return user.id
+  }
+
+  // Reapplying with the same account (e.g. a previous year) - just link
+  // to it, no new email.
+  if (existing.role === 'CANDIDAT' || existing.role === 'ETUDIANT') {
+    return existing.id
+  }
+
+  // The email already belongs to a staff/PARENT account - don't create a
+  // duplicate, and don't error out the public submission either (that
+  // would leak whether an email has an SGS account). The candidature
+  // still saves fine, just with no linked candidat account.
+  return null
+}
 
 async function create(data) {
   // POST /candidatures/public has no auth guard (both the public landing
@@ -95,11 +130,21 @@ async function create(data) {
     centreId, filiereId
   } = data
 
+  // Best-effort: a mailer/account hiccup should never be why a
+  // candidature submission itself fails - the admin can always follow up
+  // manually if this silently didn't happen.
+  let candidatUserId = null
+  try {
+    candidatUserId = await linkCandidatAccount({ email, prenom, nom, telephone, centreId })
+  } catch (err) {
+    console.error('linkCandidatAccount failed:', err)
+  }
+
   const candidature = await prisma.candidature.create({
     data: {
       prenom, nom, email, telephone,
       adresse, nomParent, telParent, message,
-      centreId, filiereId,
+      centreId, filiereId, candidatUserId,
       ...(dateNaissance && { dateNaissance: new Date(dateNaissance) })
     }
   })
