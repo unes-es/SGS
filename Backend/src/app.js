@@ -1,4 +1,5 @@
 require('dotenv').config()
+const path = require('path')
 const fastify = require('fastify')({
   logger: true
 })
@@ -10,6 +11,20 @@ fastify.register(require('@fastify/cors'), {
 })
 
 fastify.register(require('@fastify/cookie'))
+
+// Backs logo uploads (Sprint 6 - Paramètres). 2MB cap is generous for a
+// school-logo-sized image; anything bigger is almost certainly the wrong
+// file. In production this directory is only reachable directly through
+// nginx's own /uploads/ alias (see docker-compose.yml on the VPS) - this
+// registration exists so local dev (no nginx in front) can serve the same
+// files the same way.
+fastify.register(require('@fastify/multipart'), {
+  limits: { fileSize: 2 * 1024 * 1024 }
+})
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, '..', 'uploads'),
+  prefix: '/uploads/'
+})
 
 fastify.register(require('@fastify/jwt'), {
   secret: process.env.JWT_SECRET,
