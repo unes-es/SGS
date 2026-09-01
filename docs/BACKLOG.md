@@ -1,10 +1,10 @@
 # SGS — Product Backlog
 
-> Last updated: 01/09/2026 — rewritten from verified state (git history,
-> live production checks, and a full local run of the test suite/build),
-> not carried forward from the previous version of this file, which had
-> drifted significantly out of sync with reality. See `docs/ROADMAP.md`
-> for the narrative version of how this happened.
+> Last updated: 01/09/2026 (evening pass) — rewritten from verified state
+> (git history, live production checks, and a full local run of the test
+> suite/build), not carried forward from the previous version of this
+> file, which had drifted significantly out of sync with reality. See
+> `docs/ROADMAP.md` for the narrative version of how this happened.
 > Stack: React + Fastify + PostgreSQL + Prisma 7
 > Live: https://sgs.nextsi.ma
 
@@ -35,19 +35,19 @@
 - Sprint 6: Rate limiting + DB backups + logging
 - Sprint 7: Mobile responsive admin
 ### Phase 1.2 TODOs
-- [ ] Document creation form: filter list by document type (élèves vs
-      personnel) — **still open, and deeper than originally scoped**: the
-      `Document` model only has `eleveId`, no `personnelId`. There is no
-      way today to generate an ATTESTATION_TRAVAIL/FICHE_PAIE for a staff
-      member without picking a bogus "élève". Worse, `generatePdf()`'s
-      ATTESTATION_TRAVAIL branch resolves "personnel" from `doc.generePar`
-      (whoever clicked generate), not from an actual selected staff
-      member — so a secretary generating an attestation travail for a
-      teacher currently gets an attestation about *the secretary*, not
-      the teacher. Needs a real personnelId field + a type-aware form,
-      not just a filter tweak. Not fixed in tonight's pass — flagged
-      instead of rushed, since it touches a schema change and a change
-      in what the PDF actually asserts.
+- [x] Document creation form: filter list by document type (élèves vs
+      personnel) — **fixed 01/09 (evening)**. Was deeper than originally
+      scoped: `Document.eleveId` was required, so there was no way to
+      generate an ATTESTATION_TRAVAIL/FICHE_PAIE for a staff member
+      without picking a bogus "élève", and `generatePdf()`'s
+      ATTESTATION_TRAVAIL branch resolved "personnel" from
+      `doc.generePar` (whoever clicked generate) instead of an actual
+      selected employee — confirmed locally that this produced an
+      attestation about the admin, not the teacher it was meant for.
+      Added a nullable `personnelId`, made `eleveId` optional, the
+      creation form now shows a Personnel selector for those two types,
+      and `generatePdf()` 422s with a clear message instead of silently
+      rendering wrong data when nothing can be resolved.
 - [x] Reçu paiement PDF: let user select which paiement to print (not
       just latest) — **fixed 01/09**, see Phase 2 Sprint 5 below.
 - [x] Relevé de notes PDF — done (Phase 2 Sprint 2).
@@ -136,12 +136,26 @@ against a live database for the first time:
 - [ ] Logo upload → used in PDF headers (replacing current placeholder)
 - [ ] Modèles de documents personnalisables
 - [ ] QR code anti-fraude sur documents officiels
-- [ ] Document-type-aware creation form / personnel documents (see
-      Phase 1.2 TODO above — this is where that probably belongs)
+- [x] ~~Document-type-aware creation form / personnel documents~~ — done
+      01/09, see Phase 1.2 TODOs above.
 
-Confirmed not started: no code for any of this exists anywhere in the
-repo, and nothing has touched the frontend/backend since the Rapports
-work in April/May (see "Known issues" below for the full gap).
+Rest of this sprint confirmed not started: no code for logo
+upload/paramètres page/templates/QR anywhere in the repo.
+
+### Unplanned — SUPER_ADMIN centre switcher ✅ (done 01/09, evening)
+Was a "Known Issues" tech-debt item below; promoted to a full fix
+because the backend already had everything needed. See "Known Issues"
+section for detail — moved here since it's now shipped, not debt.
+- [x] `centreStore` (Zustand, persisted) + Topbar dropdown, SUPER_ADMIN-only
+- [x] Wired into all ~10 centre-scoped controllers' pages
+      (absences, caisse, candidatures, classes, eleves, filieres,
+      notifications, personnel, rapports, salaires) plus Dashboard
+- [x] Create-forms (Classes/Filières/Personnel/Salaires) now default new
+      records to the centre being viewed, not always the admin's own
+- [x] Found + fixed along the way: `eleves.controller.js`'s SUPER_ADMIN
+      branch had no fallback to the admin's own centre (every other
+      module does), so the Élèves list had been showing students from
+      both centres mixed together with no way to filter it down.
 ---
 
 ## 📋 PHASE 2.2 — Portail Candidat/Étudiant (Not started)
@@ -219,6 +233,29 @@ work in April/May (see "Known issues" below for the full gap).
 - [ ] Google Calendar sync for emplois du temps
 ---
 
+## 🎨 UI/UX Polish (added 01/09, evening)
+
+- [ ] **Regroup Sidebar nav by domain, not by dev phase** — `Sidebar.jsx`'s
+      `NAV` array currently groups items under `PHASE 1` / `PHASE 2` /
+      `PHASE 3` section headers, which reflects *when a feature shipped*,
+      not what it's for — meaningless to the school staff actually using
+      it. Regroup by nature instead, e.g.: **Académique** (Élèves,
+      Absences, Classes, Filières, Emplois du temps, Notes), **RH**
+      (Personnel, Salaires), **Finance** (Caisse, Documents),
+      **Admissions** (Candidatures, Notifications), **Rapports**
+      (Rapports), plus whatever Portail Parents/Site Vitrine/Paramètres
+      land under once they exist. Dashboard stays its own top-level item.
+- [ ] **Set a real page title** — `frontend/index.html` still has
+      `<title>frontend</title>`, the unchanged Vite scaffold default,
+      showing literally "frontend" in every browser tab. Should be "SGS"
+      or similar (e.g. "SGS — École Supérieure de Gestion et Sciences",
+      matching the school name used elsewhere). Worth also considering
+      per-route titles at the same time (e.g. "Élèves — SGS") while
+      touching this, though that's a separate, larger change (needs a
+      title-setting mechanism per route, not just the static HTML tag).
+
+---
+
 ## 💡 Product Ideas Backlog
 
 - [ ] **Candidature conversion rate** — stat card: Acceptées/Total on candidatures dashboard
@@ -246,14 +283,10 @@ work in April/May (see "Known issues" below for the full gap).
       admin pages are now `React.lazy()`-loaded behind one Suspense
       boundary. Main bundle is 306KB; Recharts (348KB) only loads on
       pages that actually chart something.
-- [ ] Classes query in frontend doesn't pass centreId — relies on token
-      (works but fragile). **Scoped, not fixed tonight**: the backend
-      already supports a SUPER_ADMIN override (`req.query.centreId ||
-      req.user.centreId`) on Classes and several other list endpoints,
-      but *no frontend page ever sends it* and there is no centre-switcher
-      UI anywhere in the admin — this isn't a one-line fix, it's a
-      cross-cutting feature (global centre selector, probably in Topbar,
-      persisted, then wired into ~9 pages' queries). Worth its own pass.
+- [x] ~~Classes query in frontend doesn't pass centreId~~ — **fixed 01/09
+      (evening)**, see "Unplanned — SUPER_ADMIN centre switcher" under
+      Phase 2 above. Turned into a full centre-switcher feature, not just
+      the Classes page.
 - [ ] No input sanitization on public routes — **partially fixed 01/09**:
       `candidatures/public` now has a Fastify schema + service-level
       whitelist (see Phase 2 Sprint 1 above). The public `centres`/
