@@ -18,6 +18,10 @@ import LandingPage from './pages/public/LandingPage'
 // every visitor who never logs in. LoginPage stays eager since it's the
 // one admin route reachable without already being authenticated.
 import LoginPage from './pages/admin/LoginPage'
+// Public, unauthenticated (reached by scanning a document's QR code) - not
+// under /admin, kept eager for the same reason LandingPage is: it's often
+// the first (and only) page a given visitor ever loads on this site.
+import Verify from './pages/public/Verify'
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'))
 const Eleves = lazy(() => import('./pages/admin/Eleves'))
 const Absences = lazy(() => import('./pages/admin/Absences'))
@@ -32,6 +36,7 @@ const Emplois = lazy(() => import('./pages/admin/Emplois'))
 const Candidatures = lazy(() => import('./pages/admin/Candidatures'))
 const Notifications = lazy(() => import('./pages/admin/Notifications'))
 const Rapports = lazy(() => import('./pages/admin/Rapports'))
+const Parametres = lazy(() => import('./pages/admin/Parametres'))
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -92,6 +97,9 @@ export default function App() {
             {/* Admin login — no layout */}
             <Route path="/admin/login" element={<LoginPage />} />
 
+            {/* Document verification — no layout, no auth */}
+            <Route path="/verify/:numeroSerie" element={<Verify />} />
+
             {/* Admin — protected */}
             <Route path="/admin" element={
               <ProtectedRoute>
@@ -114,7 +122,7 @@ export default function App() {
               <Route path="notifications" element={<Notifications/>} />
               <Route path="portail" element={<Soon name="Portail Parents" />} />
               <Route path="vitrine" element={<Soon name="Site Vitrine" />} />
-              <Route path="parametres" element={<Soon name="Paramètres" />} />
+              <Route path="parametres" element={<Parametres />} />
               <Route path="rapports" element={<Rapports />} />
             </Route>
           </Routes>
