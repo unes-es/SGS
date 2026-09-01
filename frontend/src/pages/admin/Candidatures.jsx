@@ -9,6 +9,7 @@ import StatCard from '../../components/ui/StatCard'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import api from '../../api/axios'
 import { elevesApi } from '../../api/eleves'
+import { useCentreStore } from '../../store/centreStore'
 
 
 const STATUT_COLORS = {
@@ -386,19 +387,21 @@ function CandidaturePanel({ candidature, onClose }) {
 
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Candidatures() {
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
   const [statut, setStatut] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState(null)
   const [modal, setModal] = useState(false)
 
   const { data: statsRes } = useQuery({
-    queryKey: ['candidatures-stats'],
-    queryFn: candidaturesApi.getStats
+    queryKey: ['candidatures-stats', centreId],
+    queryFn: () => candidaturesApi.getStats({ centreId })
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['candidatures', { statut, page }],
-    queryFn: () => candidaturesApi.getAll({ statut, page, limit: 15 }),
+    queryKey: ['candidatures', { statut, page, centreId }],
+    queryFn: () => candidaturesApi.getAll({ statut, page, limit: 15, centreId }),
     keepPreviousData: true
   })
 

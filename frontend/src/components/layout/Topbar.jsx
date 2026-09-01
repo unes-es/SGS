@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import { authApi } from '../../api/auth'
+import { centresApi } from '../../api/centres'
 import { notificationsApi } from '../../api/notifications'
 import { useNavigate } from 'react-router-dom'
 
@@ -37,11 +39,32 @@ const TYPE_ICONS = {
 export default function Topbar({ onMenuClick }) {
   const { pathname } = useLocation()
   const { user, logout } = useAuthStore()
+  const { selectedCentreId, setSelectedCentreId } = useCentreStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef(null)
   const info = TITLES[pathname] || { title: 'SGS', sub: '' }
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
+
+  // Centres list for the switcher - only SUPER_ADMIN can override which
+  // centre's data they're viewing, so this only needs to fetch for them.
+  const { data: centresRes } = useQuery({
+    queryKey: ['centres-all'],
+    queryFn: () => centresApi.getAll(),
+    enabled: isSuperAdmin
+  })
+  const centres = centresRes?.data?.data || []
+
+  const handleCentreChange = (value) => {
+    setSelectedCentreId(value || null)
+    // Every page's queries key on selectedCentreId, but a query that was
+    // already in flight (or one for a page not currently mounted) won't
+    // pick up the store change on its own - invalidating everything is
+    // blunt but correct, and this is a rare, deliberate action, not a
+    // hot path worth optimizing.
+    qc.invalidateQueries()
+  }
 
   const handleLogout = async () => {
     try { await authApi.logout() } catch {}
@@ -61,8 +84,8 @@ export default function Topbar({ onMenuClick }) {
   }, [])
 
   const { data: notifRes } = useQuery({
-    queryKey: ['notifications'],
-    queryFn:  () => notificationsApi.getAll({ limit: 10 }),
+    queryKey: ['notifications', selectedCentreId],
+    queryFn:  () => notificationsApi.getAll({ limit: 10, centreId: selectedCentreId || undefined }),
     refetchInterval: 30000 // refresh every 30 seconds
   })
 
@@ -100,6 +123,21 @@ export default function Topbar({ onMenuClick }) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Centre switcher - SUPER_ADMIN only, every other role is always
+            scoped to their own centre regardless of this */}
+        {isSuperAdmin && (
+          <select
+            value={selectedCentreId || ''}
+            onChange={e => handleCentreChange(e.target.value)}
+            title="Centre affiché"
+            className="hidden sm:block bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-blue-500 max-w-40">
+            <option value="">Mon centre</option>
+            {centres.map(c => (
+              <option key={c.id} value={c.id}>{c.nom}</option>
+            ))}
+          </select>
+        )}
+
         {/* Search */}
         <div className="hidden md:flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-400 w-48 cursor-text">
           <span>🔍</span>

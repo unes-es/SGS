@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { classesApi } from '../../api/classes'
 import { filieresApi } from '../../api/filieres'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import { toast } from 'sonner'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -118,6 +119,8 @@ function Field({ label, value, onChange, type = 'text', placeholder = '' }) {
 export default function Classes() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
   const [modal, setModal] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [filiereId, setFiliereId] = useState('')
@@ -125,13 +128,13 @@ export default function Classes() {
   const [search, setSearch] = useState('')
 
   const { data: filieresRes } = useQuery({
-    queryKey: ['filieres'],
-    queryFn: filieresApi.getAll
+    queryKey: ['filieres', centreId],
+    queryFn: () => filieresApi.getAll({ centreId })
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['classes', { filiereId }],
-    queryFn: () => classesApi.getAll({ filiereId }),
+    queryKey: ['classes', { filiereId, centreId }],
+    queryFn: () => classesApi.getAll({ filiereId, centreId }),
   })
 
   const { mutate: remove } = useMutation({
@@ -251,7 +254,7 @@ export default function Classes() {
       {(modal === 'create' || (modal && modal.id)) && (
         <ClasseModal
           classe={modal === 'create' ? null : modal}
-          centreId={user?.centreId}
+          centreId={selectedCentreId || user?.centreId}
           onClose={() => setModal(null)}
         />
       )}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { absencesApi } from '../../api/absences'
 import { elevesApi }   from '../../api/eleves'
 import { matieresApi } from '../../api/matieres'
+import { useCentreStore } from '../../store/centreStore'
 import { toast } from 'sonner'
 import Card     from '../../components/ui/Card'
 import Badge    from '../../components/ui/Badge'
@@ -159,6 +160,7 @@ function JustifyModal({ absence, onClose }) {
 
 export default function Absences() {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [modal,     setModal]     = useState(false)
   const [justify,   setJustify]   = useState(null)
   const [confirm,   setConfirm]   = useState(null)
@@ -167,13 +169,13 @@ export default function Absences() {
   const [page,      setPage]      = useState(1)
 
   const { data: statsRes } = useQuery({
-    queryKey: ['absences-stats'],
-    queryFn:  absencesApi.getStats
+    queryKey: ['absences-stats', selectedCentreId],
+    queryFn:  () => absencesApi.getStats({ centreId: selectedCentreId || undefined })
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['absences', { dateDebut, dateFin, page }],
-    queryFn:  () => absencesApi.getAll({ dateDebut, dateFin, page, limit: 15 }),
+    queryKey: ['absences', { dateDebut, dateFin, page, centreId: selectedCentreId }],
+    queryFn:  () => absencesApi.getAll({ dateDebut, dateFin, page, limit: 15, centreId: selectedCentreId || undefined }),
     keepPreviousData: true
   })
 

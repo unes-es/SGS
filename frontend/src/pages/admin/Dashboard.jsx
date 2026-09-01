@@ -1,5 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import { dashboardApi } from '../../api/dashboard'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import StatCard from '../../components/ui/StatCard'
@@ -12,15 +13,17 @@ const PIE_COLORS = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4']
 
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
 
   const [absStats, caisseStats, elevesRes, absencesRes, revenueRes, filiereRes] = useQueries({
     queries: [
-      { queryKey: ['absences-stats'],       queryFn: dashboardApi.getAbsencesStats },
-      { queryKey: ['caisse-stats'],         queryFn: dashboardApi.getCaisseStats },
-      { queryKey: ['eleves-recent'],        queryFn: dashboardApi.getEleves },
-      { queryKey: ['absences-recent'],      queryFn: dashboardApi.getAbsences },
-      { queryKey: ['revenue-chart'],        queryFn: dashboardApi.getRevenueChart },
-      { queryKey: ['eleves-par-filiere'],   queryFn: dashboardApi.getElevesParFiliere },
+      { queryKey: ['absences-stats', centreId],       queryFn: () => dashboardApi.getAbsencesStats({ centreId }) },
+      { queryKey: ['caisse-stats', centreId],         queryFn: () => dashboardApi.getCaisseStats({ centreId }) },
+      { queryKey: ['eleves-recent', centreId],        queryFn: () => dashboardApi.getEleves({ centreId }) },
+      { queryKey: ['absences-recent', centreId],      queryFn: () => dashboardApi.getAbsences({ centreId }) },
+      { queryKey: ['revenue-chart', centreId],        queryFn: () => dashboardApi.getRevenueChart({ centreId }) },
+      { queryKey: ['eleves-par-filiere', centreId],   queryFn: () => dashboardApi.getElevesParFiliere({ centreId }) },
     ]
   })
 

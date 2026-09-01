@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salairesApi } from '../../api/salaires'
 import { personnelApi } from '../../api/personnel'
+import { useCentreStore } from '../../store/centreStore'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -11,7 +12,7 @@ import { toast } from 'sonner'
 const MODES = ['VIREMENT', 'ESPECES', 'CHEQUE']
 const MOIS_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 
-function SalaireModal({ onClose }) {
+function SalaireModal({ onClose, centreId }) {
   const qc = useQueryClient()
   const now = new Date()
   const [form, setForm] = useState({
@@ -37,13 +38,13 @@ function SalaireModal({ onClose }) {
   }
 
   const { data: personnelRes } = useQuery({
-    queryKey: ['personnel-all'],
-    queryFn: () => personnelApi.getAll()
+    queryKey: ['personnel-all', centreId],
+    queryFn: () => personnelApi.getAll({ centreId })
   })
   const personnel = personnelRes?.data?.data || []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: salairesApi.create,
+    mutationFn: (data) => salairesApi.create({ ...data, centreId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salaires'] })
       qc.invalidateQueries({ queryKey: ['salaires-stats'] })
@@ -210,6 +211,8 @@ function PayerModal({ salaire, onClose }) {
 }
 
 export default function Salaires() {
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
   const now = new Date()
   const [modal, setModal] = useState(null)
   const [payer, setPayer] = useState(null)
@@ -219,13 +222,13 @@ export default function Salaires() {
   const [search, setSearch] = useState('')
 
   const { data: statsRes } = useQuery({
-    queryKey: ['salaires-stats', { mois, annee }],
-    queryFn: () => salairesApi.getStats({ mois, annee })
+    queryKey: ['salaires-stats', { mois, annee, centreId }],
+    queryFn: () => salairesApi.getStats({ mois, annee, centreId })
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['salaires', { mois, annee, statut }],
-    queryFn: () => salairesApi.getAll({ mois, annee, statut })
+    queryKey: ['salaires', { mois, annee, statut, centreId }],
+    queryFn: () => salairesApi.getAll({ mois, annee, statut, centreId })
   })
 
   const stats = statsRes?.data?.data
@@ -355,7 +358,7 @@ export default function Salaires() {
         )}
       </Card>
 
-      {modal && <SalaireModal onClose={() => setModal(null)} />}
+      {modal && <SalaireModal onClose={() => setModal(null)} centreId={centreId} />}
       {payer && <PayerModal salaire={payer} onClose={() => setPayer(null)} />}
     </div>
   )

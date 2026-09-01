@@ -1,8 +1,8 @@
 import api from './axios'
 
 export const caisseApi = {
-  getStats:       ()       => api.get('/caisse/stats'),
-  getCaisses:     ()       => api.get('/caisse/caisses'),
+  getStats:       (params) => api.get('/caisse/stats', { params }),
+  getCaisses:     (params) => api.get('/caisse/caisses', { params }),
   getPaiements:   (params) => api.get('/caisse/paiements', { params }),
   createPaiement: (data)   => api.post('/caisse/paiements', data),
   getBons:        (params) => api.get('/caisse/bons', { params }),

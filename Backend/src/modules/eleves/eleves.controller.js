@@ -3,8 +3,16 @@
 module.exports = {
   async getAll(req, reply) {
     const { page, limit, search, statut, classeId } = req.query
+    // Was `req.query.centreId` alone for SUPER_ADMIN (no fallback) - since
+    // the where clause below passes centreId straight to Prisma, an
+    // undefined value there means "no filter at all", not "my own centre".
+    // No frontend page has ever sent this param, so every SUPER_ADMIN
+    // viewing this list has been seeing élèves from every centre mixed
+    // together, with no way to narrow it down. Matches the
+    // `req.query.centreId || req.user.centreId` fallback every other
+    // module already uses.
     const centreId = req.user.role === 'SUPER_ADMIN'
-      ? req.query.centreId
+      ? req.query.centreId || req.user.centreId
       : req.user.centreId
 
     const result = await service.getAll({

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi } from '../../api/notifications'
+import { useCentreStore } from '../../store/centreStore'
 import { toast } from 'sonner'
 import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
@@ -25,10 +26,12 @@ const TYPE_COLORS = {
 export default function Notifications() {
     const navigate = useNavigate()
     const qc = useQueryClient()
+    const { selectedCentreId } = useCentreStore()
+    const centreId = selectedCentreId || undefined
 
     const { data, isLoading } = useQuery({
-        queryKey: ['notifications-all'],
-        queryFn: () => notificationsApi.getAll({ limit: 50 })
+        queryKey: ['notifications-all', centreId],
+        queryFn: () => notificationsApi.getAll({ limit: 50, centreId })
     })
 
     const { mutate: markAllRead } = useMutation({

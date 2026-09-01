@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { caisseApi } from '../../api/caisse'
 import { elevesApi } from '../../api/eleves'
+import { useCentreStore } from '../../store/centreStore'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -267,21 +268,23 @@ function BonModal({ onClose, caisses }) {
 
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Caisse() {
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
   const [tab, setTab] = useState('paiements')
   const [modalType, setModalType] = useState(null)
   const [pagePaie, setPagePaie] = useState(1)
   const [pageBons, setPageBons] = useState(1)
 
-  const { data: statsRes } = useQuery({ queryKey: ['caisse-stats'], queryFn: caisseApi.getStats })
-  const { data: caissesRes } = useQuery({ queryKey: ['caisses'], queryFn: caisseApi.getCaisses })
+  const { data: statsRes } = useQuery({ queryKey: ['caisse-stats', centreId], queryFn: () => caisseApi.getStats({ centreId }) })
+  const { data: caissesRes } = useQuery({ queryKey: ['caisses', centreId], queryFn: () => caisseApi.getCaisses({ centreId }) })
   const { data: paieRes, isLoading: paieLoading } = useQuery({
-    queryKey: ['paiements', pagePaie],
-    queryFn: () => caisseApi.getPaiements({ page: pagePaie, limit: 15 }),
+    queryKey: ['paiements', pagePaie, centreId],
+    queryFn: () => caisseApi.getPaiements({ page: pagePaie, limit: 15, centreId }),
     keepPreviousData: true
   })
   const { data: bonsRes, isLoading: bonsLoading } = useQuery({
-    queryKey: ['bons', pageBons],
-    queryFn: () => caisseApi.getBons({ page: pageBons, limit: 15 }),
+    queryKey: ['bons', pageBons, centreId],
+    queryFn: () => caisseApi.getBons({ page: pageBons, limit: 15, centreId }),
     keepPreviousData: true
   })
 

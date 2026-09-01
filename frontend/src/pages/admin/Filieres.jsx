@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import { filieresApi } from '../../api/filieres'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -309,14 +310,16 @@ function Field({ label, value, onChange, type = 'text', placeholder = '' }) {
 export default function Filieres() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || user?.centreId
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [search, setSearch] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['filieres'],
-    queryFn: filieresApi.getAll
+    queryKey: ['filieres', centreId],
+    queryFn: () => filieresApi.getAll({ centreId })
   })
 
   const { mutate: remove } = useMutation({
@@ -418,7 +421,7 @@ export default function Filieres() {
       {(modal === 'create' || (modal && modal.id)) && (
         <FiliereModal
           filiere={modal === 'create' ? null : modal}
-          centreId={user?.centreId}
+          centreId={centreId}
           onClose={() => setModal(null)}
         />
       )}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { elevesApi } from '../../api/eleves'
 import { classesApi } from '../../api/classes'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -36,8 +37,8 @@ function EleveModal({ eleve, onClose, centreId }) {
   const [error, setError] = useState('')
 
   const { data: classesRes } = useQuery({
-    queryKey: ['classes'],
-    queryFn: () => classesApi.getAll()
+    queryKey: ['classes', centreId],
+    queryFn: () => classesApi.getAll({ centreId })
   })
   const classes = classesRes?.data?.data || []
 
@@ -242,6 +243,7 @@ function Row({ label, value, mono }) {
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Eleves() {
   const { user } = useAuthStore?.() || {}
+  const { selectedCentreId } = useCentreStore()
   const qc = useQueryClient()
 
   const [search, setSearch] = useState('')
@@ -252,16 +254,16 @@ export default function Eleves() {
   const [classeId, setClasseId] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['eleves', { search, statut, classeId, page }],
-    queryFn: () => elevesApi.getAll({ search, statut, classeId, page, limit: 15 }),
+    queryKey: ['eleves', { search, statut, classeId, page, selectedCentreId }],
+    queryFn: () => elevesApi.getAll({ search, statut, classeId, page, limit: 15, centreId: selectedCentreId || undefined }),
     keepPreviousData: true
   })
 
   const [printing, setPrinting] = useState(false)
 
   const { data: allElevesRes, refetch: fetchAll } = useQuery({
-    queryFn: () => elevesApi.getAll({ search, statut, classeId, limit: 500 }),
-    queryKey: ['eleves-all-print', { search, statut, classeId }],
+    queryFn: () => elevesApi.getAll({ search, statut, classeId, limit: 500, centreId: selectedCentreId || undefined }),
+    queryKey: ['eleves-all-print', { search, statut, classeId, selectedCentreId }],
     enabled: false
   })
   const allEleves = allElevesRes?.data?.data || []
@@ -275,9 +277,14 @@ export default function Eleves() {
     }, 300)
   }
 
+  // Falls back to the admin's own centre when nothing is explicitly
+  // selected - both for filtering this page's Classe dropdown and as the
+  // default centreId a newly-created élève is assigned to below.
+  const centreId = selectedCentreId || user?.centreId
+
   const { data: classesRes } = useQuery({
-    queryKey: ['classes'],
-    queryFn: () => classesApi.getAll()
+    queryKey: ['classes', centreId],
+    queryFn: () => classesApi.getAll({ centreId })
   })
 
 
@@ -285,7 +292,6 @@ export default function Eleves() {
 
   const eleves = data?.data?.data || []
   const meta = data?.data?.meta || {}
-  const centreId = user?.centreId
 
   return (
     <div className="space-y-4">

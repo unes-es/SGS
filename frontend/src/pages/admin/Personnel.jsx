@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { personnelApi } from '../../api/personnel'
+import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
@@ -18,7 +20,7 @@ const CONTRAT_COLORS = {
 const TYPES_CONTRAT = ['PERMANENT', 'VACATAIRE', 'ADMINISTRATIF', 'STAGIAIRE']
 
 // ── MODAL ──────────────────────────────────────────
-function PersonnelModal({ membre, onClose }) {
+function PersonnelModal({ membre, onClose, centreId }) {
   const qc = useQueryClient()
   const isEdit = !!membre
 
@@ -41,7 +43,7 @@ function PersonnelModal({ membre, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: isEdit
       ? (data) => personnelApi.update(membre.id, data)
-      : (data) => personnelApi.create(data),
+      : (data) => personnelApi.create({ ...data, centreId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['personnel'] })
       toast.success(isEdit ? 'Membre modifié' : 'Membre créé')
@@ -253,6 +255,9 @@ function Row({ label, value }) {
 // ── MAIN PAGE ──────────────────────────────────────
 export default function Personnel() {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || user?.centreId
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [typeContrat, setTypeContrat] = useState('')
@@ -263,8 +268,8 @@ export default function Personnel() {
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['personnel', { typeContrat, search, page }],
-    queryFn: () => personnelApi.getAll({ typeContrat, search, page, limit: 15 }),
+    queryKey: ['personnel', { typeContrat, search, page, centreId }],
+    queryFn: () => personnelApi.getAll({ typeContrat, search, page, limit: 15, centreId: selectedCentreId || undefined }),
     keepPreviousData: true
   })
 
@@ -408,6 +413,7 @@ export default function Personnel() {
       {(modal === 'create' || (modal && modal.id)) && (
         <PersonnelModal
           membre={modal === 'create' ? null : modal}
+          centreId={centreId}
           onClose={() => setModal(null)}
         />
       )}

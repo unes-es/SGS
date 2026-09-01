@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import axios from '../../api/axios'
+import { useCentreStore } from '../../store/centreStore'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend
@@ -21,6 +22,8 @@ const MONTHS = [
 ]
 
 export default function Rapports() {
+  const { selectedCentreId } = useCentreStore()
+  const centreId = selectedCentreId || undefined
   const [activeTab, setActiveTab] = useState('Financier')
   const [annee, setAnnee] = useState(String(currentYear))
   const [mois, setMois] = useState('')
@@ -28,22 +31,22 @@ export default function Rapports() {
 
   // Financier
   const { data: financier, isLoading: loadingFin } = useQuery({
-    queryKey: ['rapports-financier', annee, mois],
-    queryFn: () => axios.get('/rapports/financier', { params: { annee, mois } }).then(r => r.data.data),
+    queryKey: ['rapports-financier', annee, mois, centreId],
+    queryFn: () => axios.get('/rapports/financier', { params: { annee, mois, centreId } }).then(r => r.data.data),
     enabled: activeTab === 'Financier',
   })
 
   // Présence
   const { data: presence, isLoading: loadingPres } = useQuery({
-    queryKey: ['rapports-presence', annee, mois],
-    queryFn: () => axios.get('/rapports/presence', { params: { annee, mois } }).then(r => r.data.data),
+    queryKey: ['rapports-presence', annee, mois, centreId],
+    queryFn: () => axios.get('/rapports/presence', { params: { annee, mois, centreId } }).then(r => r.data.data),
     enabled: activeTab === 'Présence',
   })
 
   // Réussite
   const { data: reussite, isLoading: loadingReus } = useQuery({
-    queryKey: ['rapports-reussite', annee, mois],
-    queryFn: () => axios.get('/rapports/reussite', { params: { annee, mois } }).then(r => r.data.data),
+    queryKey: ['rapports-reussite', annee, mois, centreId],
+    queryFn: () => axios.get('/rapports/reussite', { params: { annee, mois, centreId } }).then(r => r.data.data),
     enabled: activeTab === 'Réussite',
   })
 
@@ -51,7 +54,7 @@ export default function Rapports() {
     setExporting(true)
     try {
       const res = await axios.get('/rapports/export-fec', {
-        params: { annee, mois },
+        params: { annee, mois, centreId },
         responseType: 'blob',
       })
       const url = window.URL.createObjectURL(new Blob([res.data]))
