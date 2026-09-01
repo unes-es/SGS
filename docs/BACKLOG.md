@@ -88,9 +88,11 @@ the `CANDIDAT`/`ETUDIANT` auth foundation in Phase 2.2, not before it.
 - [x] Notification model, broadcast on candidature creation
 - [x] Alertes impayés automatiques (daily cron via node-cron)
 - [x] Notification center in Topbar (30s polling), sidebar badges
-- [ ] Email notifications (Brevo/Resend) — **status still unconfirmed**,
-      check `mailer.js` before assuming this is live. Not touched
-      tonight.
+- [ ] Email notifications for impayés/alerts — `mailer.js` (Resend) now
+      definitely exists and works (built + verified for Phase 2.2's
+      candidat/élève/personnel emails), but `notifications.service.js`
+      itself never calls it — impayés alerts and broadcasts are still
+      in-app only, no email sent. A real gap now, not just unconfirmed.
 
 ### Sprint 5 — Rapports & KPI ✅ (finished and shipped 01/09)
 This was fully written back in April/May but sat **uncommitted on disk
@@ -370,11 +372,20 @@ sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
 
 ## 💡 Product Ideas Backlog
 
-- [ ] **Candidature conversion rate** — stat card: Acceptées/Total on candidatures dashboard
-- [ ] **Welcome email** — auto-send credentials when élève or personnel created
-- [ ] **Document QR code** — anti-fraud verification for printed documents
+- [x] ~~**Candidature conversion rate**~~ — done, Phase 2.2 Sprint 4 (not
+      Acceptées/Total as originally scoped here — ACCEPTEE and actually
+      converted-to-ETUDIANT are different admin actions, so it counts the
+      latter; see that section for why).
+- [x] ~~**Welcome email**~~ — done, Phase 2.2 Sprint 4 (élève) and later
+      the same day (personnel) — see "Personnel accounts always got role
+      PROFESSEUR" under Known Issues for the personnel side.
+- [x] ~~**Document QR code**~~ — done, Phase 2 Sprint 6 (anti-fraud
+      `/verify/:numeroSerie`).
 - [ ] **WhatsApp integration** — absence alerts and payment reminders via WhatsApp
-- [ ] **Student self-service** — students can request attestations directly from their portal
+- [~] **Student self-service** — partially done: the ETUDIANT portal
+      (Phase 2.2 Sprint 3) lets a student download attestations/bulletins
+      staff already generated. Requesting a *new* document be generated,
+      without a staff member doing it first, is still not built.
 - [ ] **Parent communication log** — track all communications with parents per student
 - [ ] **Classe capacity alerts** — notify admin when a class reaches 80%/100% capacity
 - [ ] **Financial forecasting** — predict next month's revenue based on enrolled students × frais scolarité
