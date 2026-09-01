@@ -274,13 +274,17 @@ sandbox domain, so even once wired, delivery is limited to the Resend
 account owner's own inbox until a real sending domain is verified.
 ---
 
-## 📋 PHASE 2.3 — Programmes & Formations (Not started)
+## 📋 PHASE 2.3 — Programmes & Formations (Sprint 1 shipped 01/09)
 
-### Sprint 1 — Types de formation
-- [ ] Add typeFormation to Classe model: JOUR, SOIR, WEEKEND, HYBRIDE, INTENSIF
-- [ ] Filter classes by type in admin
-- [ ] Display type badge on class cards and emploi du temps
-- [ ] Different time slot defaults per type (soir: 18h-22h, weekend: 8h-18h)
+### Sprint 1 — Types de formation ✅ (done 01/09, deployed + verified end-to-end)
+- [x] Add typeFormation to Classe model: JOUR, SOIR, WEEKEND, HYBRIDE, INTENSIF
+      — defaults to JOUR, every pre-2.3 class stayed correctly labeled
+      with no data migration beyond the column add
+- [x] Filter classes by type in admin
+- [x] Display type badge on class cards and emploi du temps
+- [x] Different time slot defaults per type when adding a créneau (SOIR:
+      18h-20h, INTENSIF: 8h-12h, others: 8h-10h — still freely editable
+      per créneau, just a saner starting point)
 ### Sprint 2 — Gestion des créneaux
 - [ ] Emploi du temps aware of formation type
 - [ ] Time slot templates per formation type
