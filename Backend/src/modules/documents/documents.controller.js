@@ -35,7 +35,12 @@ module.exports = {
       return reply.send(pdf)
     } catch (err) {
       console.error('PDF generation error:', err)
-      return reply.status(500).send({ message: err.message || 'Erreur PDF' })
+      // Respects a thrown error's own statusCode (e.g. the 422 from
+      // generatePdf() when a RECU_PAIEMENT/ATTESTATION_TRAVAIL has no
+      // resolvable paiement/personnel) instead of always answering 500 -
+      // matches the pattern the global error handler in app.js already
+      // uses elsewhere.
+      return reply.status(err.statusCode || 500).send({ message: err.message || 'Erreur PDF' })
     }
   },
 }

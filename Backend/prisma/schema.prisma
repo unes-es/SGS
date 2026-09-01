@@ -343,6 +343,7 @@ model Personnel {
   centre        Centre      @relation(fields: [centreId], references: [id])
   salaires      Salaire[]
   emploisDuTemps EmploiDuTemps[]
+  documents     Document[]
 
   @@index([centreId])
   @@map("personnel")
@@ -435,7 +436,11 @@ model BonCaisse {
 
 model Document {
   id            String       @id @default(uuid())
-  eleveId       String
+  // Optional, not required: a document is about an élève OR a personnel
+  // member, never both. ATTESTATION_TRAVAIL/FICHE_PAIE use personnelId
+  // instead - see personnelId below. Every other type still uses eleveId
+  // as before.
+  eleveId       String?
   generePar     String
   type          TypeDocument
   titre         String
@@ -446,11 +451,16 @@ model Document {
   // type, and null on documents created before this field existed (their
   // PDF still falls back to "latest paiement", the old behavior).
   paiementId    String?
+  // Which staff member an ATTESTATION_TRAVAIL/FICHE_PAIE is for. Documents
+  // created before this field existed have it null - generatePdf() falls
+  // back to the old (incorrect) behavior of using generePar for those.
+  personnelId   String?
   createdAt     DateTime     @default(now())
 
-  eleve         Eleve           @relation(fields: [eleveId], references: [id])
+  eleve         Eleve?          @relation(fields: [eleveId], references: [id])
   genereParUser Utilisateur     @relation(fields: [generePar], references: [id])
   paiement      PaiementEleve?  @relation(fields: [paiementId], references: [id])
+  personnel     Personnel?      @relation(fields: [personnelId], references: [id])
 
   @@index([eleveId])
   @@map("documents")

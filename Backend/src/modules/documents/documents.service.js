@@ -60,14 +60,20 @@ async function create(data, generePar) {
       generePar,
       numeroSerie,
       fichierUrl: data.fichierUrl || `/documents/${numeroSerie}.pdf`,
-      // '' (unselected in the dropdown) must not reach Prisma as a
-      // paiementId - it's a valid relation column, so an empty string
-      // would fail the foreign key constraint instead of just meaning
-      // "none selected".
-      paiementId: data.paiementId || null
+      // '' (unselected in a dropdown) must not reach Prisma as a foreign
+      // key - these are all optional relation columns, so an empty string
+      // would fail the constraint instead of just meaning "none selected".
+      eleveId: data.eleveId || null,
+      paiementId: data.paiementId || null,
+      personnelId: data.personnelId || null
     },
     include: {
       eleve: {
+        include: {
+          utilisateur: { select: { prenom: true, nom: true } }
+        }
+      },
+      personnel: {
         include: {
           utilisateur: { select: { prenom: true, nom: true } }
         }
@@ -125,13 +131,23 @@ async function generatePdf(id) {
   // get centre info
   const centre = await prisma.centre.findFirst()
 
-  // get personnel if attestation travail
+  // The staff member an ATTESTATION_TRAVAIL is actually FOR - uses the
+  // personnelId selected at creation time, same pattern as paiementId
+  // below. Previously this looked up personnel by doc.generePar (whoever
+  // clicked "générer"), which meant the attestation showed info about the
+  // admin/secretary generating it instead of the employee it's supposed
+  // to certify - a real bug, not just a missing filter.
   let personnel = null
   if (doc.type === 'ATTESTATION_TRAVAIL') {
-    personnel = await prisma.personnel.findFirst({
-      where: { utilisateurId: doc.generePar },
-      include: { utilisateur: true }
-    })
+    personnel = doc.personnelId
+      ? await prisma.personnel.findUnique({
+          where: { id: doc.personnelId },
+          include: { utilisateur: true }
+        })
+      : await prisma.personnel.findFirst({
+          where: { utilisateurId: doc.generePar },
+          include: { utilisateur: true }
+        })
   }
   // Use the paiement selected at document-creation time; fall back to
   // "latest paiement" only for documents created before paiementId existed
@@ -155,7 +171,14 @@ async function generatePdf(id) {
       generateRecuPaiement(pdf, { eleve: doc.eleve, document: doc, centre, paiement })
       break
     case 'ATTESTATION_TRAVAIL':
-      generateAttestationTravail(pdf, { personnel: personnel || doc.eleve, document: doc, centre })
+      // No silent fallback to doc.eleve here anymore - it isn't shaped
+      // like a Personnel record (no cin/poste/typeContrat/dateEmbauche),
+      // so that fallback used to render a garbled PDF instead of failing
+      // loudly. A document with no resolvable personnel is a real error.
+      if (!personnel) {
+        throw { statusCode: 422, message: 'Aucun personnel associé à cette attestation de travail' }
+      }
+      generateAttestationTravail(pdf, { personnel, document: doc, centre })
       break
     default:
       pdf.font('Helvetica').fontSize(12).text(`Document: ${doc.titre}`, { align: 'center' })

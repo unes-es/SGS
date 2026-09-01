@@ -4,6 +4,7 @@ import { documentsApi } from '../../api/documents'
 import { caisseApi } from '../../api/caisse'
 import api from '../../api/axios'
 import { elevesApi } from '../../api/eleves'
+import { personnelApi } from '../../api/personnel'
 import { toast } from 'sonner'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -19,6 +20,11 @@ const TYPES_DOCS = [
   'FICHE_PAIE',
   'AUTRE'
 ]
+
+// These two document types are about a staff member, not a student -
+// the creation form shows a Personnel selector instead of an Élève one,
+// and the backend stores personnelId instead of eleveId for them.
+const PERSONNEL_TYPES = ['ATTESTATION_TRAVAIL', 'FICHE_PAIE']
 
 const TYPE_LABELS = {
   ATTESTATION_SCOLARITE: 'Attestation scolarité',
@@ -54,6 +60,7 @@ function DocumentModal({ onClose }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     eleveId: '',
+    personnelId: '',
     type: 'ATTESTATION_SCOLARITE',
     titre: '',
     anneeScolaire: '2025-2026',
@@ -61,12 +68,20 @@ function DocumentModal({ onClose }) {
   })
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const isPersonnelType = PERSONNEL_TYPES.includes(form.type)
 
   const { data: elevesRes } = useQuery({
     queryKey: ['eleves-all'],
     queryFn: () => elevesApi.getAll({ limit: 200 })
   })
   const eleves = elevesRes?.data?.data || []
+
+  const { data: personnelRes } = useQuery({
+    queryKey: ['personnel-all'],
+    queryFn: () => personnelApi.getAll({ limit: 200 }),
+    enabled: isPersonnelType
+  })
+  const personnelList = personnelRes?.data?.data || []
 
   // Only fetched when generating a reçu, and only once an élève is picked -
   // lets the admin choose which paiement the reçu is for instead of always
@@ -79,9 +94,18 @@ function DocumentModal({ onClose }) {
   const paiements = paiementsRes?.data?.data || []
 
   const handleTypeChange = (type) => {
-    set('type', type)
-    set('titre', TYPE_LABELS[type] + ' ' + form.anneeScolaire)
-    set('paiementId', '')
+    const switchingKind = PERSONNEL_TYPES.includes(type) !== PERSONNEL_TYPES.includes(form.type)
+    setForm(f => ({
+      ...f,
+      type,
+      titre: TYPE_LABELS[type] + ' ' + f.anneeScolaire,
+      paiementId: '',
+      // Clear whichever selector no longer applies when switching between
+      // an élève-type and a personnel-type document - a leftover eleveId
+      // from ATTESTATION_SCOLARITE shouldn't silently ride along onto an
+      // ATTESTATION_TRAVAIL submission.
+      ...(switchingKind && { eleveId: '', personnelId: '' })
+    }))
   }
 
   const { mutate, isPending } = useMutation({
@@ -95,7 +119,12 @@ function DocumentModal({ onClose }) {
   })
 
   const handleSubmit = () => {
-    if (!form.eleveId || !form.titre) {
+    if (isPersonnelType) {
+      if (!form.personnelId || !form.titre) {
+        setError('Personnel et titre sont requis')
+        return
+      }
+    } else if (!form.eleveId || !form.titre) {
       setError('Élève et titre sont requis')
       return
     }
@@ -116,18 +145,33 @@ function DocumentModal({ onClose }) {
             <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-2">{error}</div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
-            <select value={form.eleveId} onChange={e => { set('eleveId', e.target.value); set('paiementId', '') }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-              <option value="">Choisir un élève</option>
-              {eleves.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.utilisateur.prenom} {e.utilisateur.nom} — {e.matricule}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isPersonnelType ? (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Personnel *</label>
+              <select value={form.personnelId} onChange={e => set('personnelId', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">Choisir un membre du personnel</option>
+                {personnelList.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.utilisateur.prenom} {p.utilisateur.nom} — {p.poste}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
+              <select value={form.eleveId} onChange={e => { set('eleveId', e.target.value); set('paiementId', '') }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                <option value="">Choisir un élève</option>
+                {eleves.map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.utilisateur.prenom} {e.utilisateur.nom} — {e.matricule}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-2">Type de document *</label>
@@ -268,7 +312,7 @@ const downloadPdf = async (id, numeroSerie) => {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Document</th>
-                  <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Élève</th>
+                  <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Élève / Personnel</th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Type</th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">N° Série</th>
                   <th className="text-left text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3">Généré le</th>
@@ -287,7 +331,11 @@ const downloadPdf = async (id, numeroSerie) => {
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-gray-900">
-                        {d.eleve.utilisateur.prenom} {d.eleve.utilisateur.nom}
+                        {d.eleve
+                          ? `${d.eleve.utilisateur.prenom} ${d.eleve.utilisateur.nom}`
+                          : d.personnel
+                            ? `${d.personnel.utilisateur.prenom} ${d.personnel.utilisateur.nom}`
+                            : '—'}
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
