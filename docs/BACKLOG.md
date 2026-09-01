@@ -352,10 +352,11 @@ sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
       real active centre; the non-functional "Changer" text is gone.
 - [x] **Set a real page title** — done, later 01/09. `<title>SGS —
       Gestion Scolaire</title>`, `lang="fr"` (was `"en"` on an
-      entirely French-language app). Per-route titles (e.g.
-      "Élèves — SGS") still not done - flagged as separate, larger scope
-      when this was written, still true; needs an actual title-setting
-      mechanism per route, not just the static HTML tag.
+      entirely French-language app).
+- [x] **Per-route page titles** — done 01/09 (later pass). New
+      `usePageTitle` hook + a longest-prefix route→title map, wired into
+      `App.jsx`. "Élèves — SGS", "Candidatures — SGS", etc. instead of
+      the same static title everywhere.
 
 ---
 
@@ -390,12 +391,32 @@ sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
       (evening)**, see "Unplanned — SUPER_ADMIN centre switcher" under
       Phase 2 above. Turned into a full centre-switcher feature, not just
       the Classes page.
-- [ ] No input sanitization on public routes — **partially fixed 01/09**:
-      `candidatures/public` now has a Fastify schema + service-level
-      whitelist (see Phase 2 Sprint 1 above). The public `centres`/
-      `filieres` GET endpoints are read-only, so mass-assignment doesn't
-      apply there, but they still take no query validation at all — low
-      risk, not addressed tonight.
+- [x] ~~No input sanitization on public routes~~ — **fixed 01/09**:
+      `candidatures/public` already had a Fastify schema + service-level
+      whitelist (Phase 2 Sprint 1). The public `centres`/`filieres` GET
+      endpoints were genuinely low-risk (`:id` columns are plain
+      `String`, not `@db.Uuid`, so a malformed id was already falling
+      through to a clean 404, not a crash) — added `format: uuid`/enum
+      schema validation anyway, for an explicit 400 instead of relying on
+      that incidental fallback, and because the tarifs `:typeFormation`
+      param genuinely *would* have 500'd with a raw Prisma error message
+      reaching the caller (that endpoint is staff-only, not public, but
+      same fix either way).
+- [x] ~~Personnel accounts always got role PROFESSEUR~~ — **fixed 01/09**,
+      found while answering a question about access control, not from
+      this list. `personnel.service.js`'s `create()` hardcoded every new
+      hire's login role to PROFESSEUR regardless of `poste` (free text) -
+      confirmed live on real data: several staff (Comptable, Directeur
+      adjoint, Secrétaire, Administrateur) all had PROFESSEUR-level
+      access. New explicit `role` field (create + update), a "Rôle de
+      connexion" selector in `Personnel.jsx`, explicitly separate from
+      `poste`. Also closed while here: the fallback password for a
+      hire with none set was always the literal string `'sgs2026'` -
+      now a random password + the existing "set your password" welcome
+      email; and a second bug found live in the UI while verifying this -
+      any edit with an empty `salaireBase`/`tauxHoraire` 500'd (Prisma
+      rejects `""` for a `Decimal?` column) - `"" -> null` now in both
+      `create()` and `update()`.
 - [x] ~~`prisma.config.ts.bak` leftover file~~ — checked 01/09, this file
       does not actually exist in the repo (only the real
       `prisma.config.ts` does). Either already cleaned up at some point,
