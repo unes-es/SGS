@@ -94,6 +94,7 @@ fastify.register(require('./modules/candidatures/candidatures.routes'), { prefix
 fastify.register(require('./modules/notifications/notifications.routes'), { prefix: '/api/notifications' })
 fastify.register(require('./modules/rapports/rapports.routes'), { prefix: '/api/rapports' })
 fastify.register(require('./modules/portal/portal.routes'), { prefix: '/api/portal' })
+fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' })
 
 const cron = require('node-cron')
 const notifService = require('./modules/notifications/notifications.service')

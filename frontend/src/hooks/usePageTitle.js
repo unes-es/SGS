@@ -35,6 +35,7 @@ const TITLES = {
   '/admin/vitrine':       'Site Vitrine',
   '/admin/parametres':    'Paramètres',
   '/admin/rapports':      'Rapports & KPI',
+  '/admin/utilisateurs':  'Utilisateurs',
 }
 
 function titleFor(pathname) {

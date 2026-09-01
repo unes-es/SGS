@@ -46,6 +46,7 @@ const Candidatures = lazy(() => import('./pages/admin/Candidatures'))
 const Notifications = lazy(() => import('./pages/admin/Notifications'))
 const Rapports = lazy(() => import('./pages/admin/Rapports'))
 const Parametres = lazy(() => import('./pages/admin/Parametres'))
+const Users = lazy(() => import('./pages/admin/Users'))
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -170,6 +171,7 @@ export default function App() {
               <Route path="vitrine" element={<Soon name="Site Vitrine" />} />
               <Route path="parametres" element={<Parametres />} />
               <Route path="rapports" element={<Rapports />} />
+              <Route path="utilisateurs" element={<Users />} />
             </Route>
           </Routes>
         </Suspense>
