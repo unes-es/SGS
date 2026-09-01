@@ -67,7 +67,10 @@ export default function Topbar({ onMenuClick }) {
   }
 
   const handleLogout = async () => {
-    try { await authApi.logout() } catch {}
+    // Best-effort - the user is logged out client-side regardless of
+    // whether the server-side logout call succeeds (e.g. an already-
+    // expired token), so a failure here is never worth blocking on.
+    try { await authApi.logout() } catch { /* intentionally ignored */ }
     logout()
     navigate('/admin/login')
   }

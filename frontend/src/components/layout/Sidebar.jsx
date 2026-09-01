@@ -1,16 +1,22 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { useCentreStore } from '../../store/centreStore'
 import { authApi } from '../../api/auth'
 import { useQuery } from '@tanstack/react-query'
 import { candidaturesApi } from '../../api/candidatures'
 import { notificationsApi } from '../../api/notifications'
+import { centresApi } from '../../api/centres'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore()
+  const { selectedCentreId } = useCentreStore()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    try { await authApi.logout() } catch { }
+    // Best-effort - the user is logged out client-side regardless of
+    // whether the server-side logout call succeeds (e.g. an already-
+    // expired token), so a failure here is never worth blocking on.
+    try { await authApi.logout() } catch { /* intentionally ignored */ }
     logout()
     navigate('/admin/login')
   }
@@ -31,6 +37,21 @@ export default function Sidebar({ isOpen, onClose }) {
     refetchInterval: 30000
   })
 
+  // The indicator below read user?.centre?.nom, a field that has never
+  // existed on this object (login only ever returns a flat centreId, see
+  // authStore.js/auth.service.js) - it's shown "Centre" as a static
+  // fallback, always, since it was written. Fetching the real centre here
+  // instead - same selectedCentreId-or-own-centre fallback every other
+  // page uses for the SUPER_ADMIN switcher, so this reflects whichever
+  // centre is actually active, not just the admin's own.
+  const activeCentreId = selectedCentreId || user?.centreId
+  const { data: centreRes } = useQuery({
+    queryKey: ['centre', activeCentreId],
+    queryFn: () => centresApi.getById(activeCentreId),
+    enabled: !!activeCentreId
+  })
+  const activeCentre = centreRes?.data?.data
+
   const pendingCandidatures = candStats?.data?.data?.enAttente || 0
   const unreadNotifs = notifData?.data?.meta?.unread || 0
   const BADGES = {
@@ -38,29 +59,35 @@ export default function Sidebar({ isOpen, onClose }) {
     '/admin/notifications': unreadNotifs,
   }
 
+  // Grouped by what each thing is actually for, not by which development
+  // phase happened to ship it - PHASE 1/2/3 section headers meant nothing
+  // to the school staff using this day to day.
   const NAV = [
-  { section: 'GÉNÉRAL' },
-  { icon: '📊', label: 'Tableau de bord', to: '/admin' },
-  { section: 'PHASE 1' },
-  { icon: '🎓', label: 'Élèves', to: '/admin/eleves' },
-  { icon: '📅', label: 'Absences', to: '/admin/absences' },
-  { icon: '🏫', label: 'Classes', to: '/admin/classes' },
-  { icon: '📚', label: 'Filières', to: '/admin/filieres' },
-  { icon: '🗓️', label: 'Emplois du temps', to: '/admin/emplois' },
-  { icon: '📝', label: 'Notes', to: '/admin/notes' },
-  { icon: '👥', label: 'Personnel', to: '/admin/personnel' },
-  { icon: '💳', label: 'Salaires', to: '/admin/salaires' },
-  { icon: '💰', label: 'Caisse', to: '/admin/caisse' },
-  { icon: '📄', label: 'Documents', to: '/admin/documents' },
-  { section: 'PHASE 2' },
-  { icon: '📋', label: 'Candidatures', to: '/admin/candidatures', badge: pendingCandidatures },
-  { icon: '🔔', label: 'Notifications', to: '/admin/notifications', badge: unreadNotifs },
-  { icon: '👨‍👩‍👧', label: 'Portail Parents', to: '/admin/portail' },
-  { icon: '📈', label: 'Rapports', to: '/admin/rapports' },
-  { section: 'PHASE 3' },
-  { icon: '🌍', label: 'Site Vitrine', to: '/admin/vitrine' },
-  { icon: '⚙️', label: 'Paramètres', to: '/admin/parametres' },
-]
+    { section: 'GÉNÉRAL' },
+    { icon: '📊', label: 'Tableau de bord', to: '/admin' },
+    { section: 'PÉDAGOGIE' },
+    { icon: '🎓', label: 'Élèves', to: '/admin/eleves' },
+    { icon: '📅', label: 'Absences', to: '/admin/absences' },
+    { icon: '🏫', label: 'Classes', to: '/admin/classes' },
+    { icon: '📚', label: 'Filières', to: '/admin/filieres' },
+    { icon: '🗓️', label: 'Emplois du temps', to: '/admin/emplois' },
+    { icon: '📝', label: 'Notes', to: '/admin/notes' },
+    { section: 'RESSOURCES HUMAINES' },
+    { icon: '👥', label: 'Personnel', to: '/admin/personnel' },
+    { icon: '💳', label: 'Salaires', to: '/admin/salaires' },
+    { section: 'FINANCE & DOCUMENTS' },
+    { icon: '💰', label: 'Caisse', to: '/admin/caisse' },
+    { icon: '📄', label: 'Documents', to: '/admin/documents' },
+    { section: 'ADMISSIONS & COMMUNICATION' },
+    { icon: '📋', label: 'Candidatures', to: '/admin/candidatures', badge: pendingCandidatures },
+    { icon: '🔔', label: 'Notifications', to: '/admin/notifications', badge: unreadNotifs },
+    { icon: '👨‍👩‍👧', label: 'Portail Parents', to: '/admin/portail' },
+    { section: 'RAPPORTS' },
+    { icon: '📈', label: 'Rapports', to: '/admin/rapports' },
+    { section: 'SYSTÈME' },
+    { icon: '🌍', label: 'Site Vitrine', to: '/admin/vitrine' },
+    { icon: '⚙️', label: 'Paramètres', to: '/admin/parametres' },
+  ]
 
   return (
     <>
@@ -94,14 +121,17 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Centre indicator */}
+        {/* Centre indicator - reflects the SUPER_ADMIN Topbar switcher's
+            selection when one is active, otherwise the admin's own centre.
+            Switching itself only happens in Topbar (SUPER_ADMIN-only, see
+            centreStore.js) - this is read-only context, not a control, so
+            it no longer claims a "Changer" affordance it never had. */}
         <div className="mx-3 mt-3 px-3 py-2 bg-gray-900 rounded-lg border border-gray-800 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
           <div className="min-w-0">
             <div className="text-gray-200 text-xs font-semibold truncate">
-              {user?.centre?.nom || 'Centre'}
+              {activeCentre?.nom || 'Centre'}
             </div>
-            <div className="text-gray-500 text-xs">Changer ↓</div>
           </div>
         </div>
 
