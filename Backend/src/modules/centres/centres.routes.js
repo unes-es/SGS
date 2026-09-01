@@ -11,6 +11,7 @@ async function centresRoutes(fastify) {
   fastify.post('/',    { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.create)
   fastify.put('/:id',  { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.update)
   fastify.delete('/:id', { preHandler: [authenticate, authorize('SUPER_ADMIN')] }, ctrl.remove)
+  fastify.post('/:id/logo', { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.updateLogo)
 }
 
 module.exports = centresRoutes
