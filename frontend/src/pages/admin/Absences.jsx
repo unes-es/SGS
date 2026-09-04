@@ -10,9 +10,11 @@ import Badge    from '../../components/ui/Badge'
 import Spinner  from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import SearchSelect from '../../components/ui/SearchSelect'
 
 function AbsenceModal({ onClose }) {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [form, setForm] = useState({
     eleveId:     '',
     matiereId:   '',
@@ -22,9 +24,13 @@ function AbsenceModal({ onClose }) {
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // Was fetching every élève across every centre regardless of the
+  // switcher - a SUPER_ADMIN viewing "SGS Rabat" would still see (and
+  // could accidentally pick) Casablanca students here, since the request
+  // never told the backend which centre to scope to.
   const { data: elevesRes } = useQuery({
-    queryKey: ['eleves-all'],
-    queryFn:  () => elevesApi.getAll({ limit: 200 })
+    queryKey: ['eleves-all', selectedCentreId],
+    queryFn:  () => elevesApi.getAll({ limit: 500, centreId: selectedCentreId || undefined })
   })
   const { data: matieresRes } = useQuery({
     queryKey: ['matieres-all'],
@@ -58,15 +64,16 @@ function AbsenceModal({ onClose }) {
           )}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
-            <select value={form.eleveId} onChange={e => set('eleveId', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-              <option value="">Choisir un élève</option>
-              {eleves.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.utilisateur.prenom} {e.utilisateur.nom} — {e.classe?.nom}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              value={form.eleveId}
+              onChange={v => set('eleveId', v)}
+              placeholder="Rechercher un élève..."
+              options={eleves.map(e => ({
+                value: e.id,
+                label: `${e.utilisateur.prenom} ${e.utilisateur.nom}`,
+                sublabel: e.classe?.nom
+              }))}
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Matière</label>

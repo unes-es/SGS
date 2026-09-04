@@ -574,6 +574,37 @@ deactivated one, from the UI at all.
       (evening)**, see "Unplanned — SUPER_ADMIN centre switcher" under
       Phase 2 above. Turned into a full centre-switcher feature, not just
       the Classes page.
+- [x] ~~Insert-modal élève/personnel dropdowns leaked other centres, and
+      were unusable at 150+ entries~~ — **fixed 04/09**, reported by
+      Younes with a screenshot (Absences' "Saisir absence" modal showing
+      students from the wrong campus while "SGS Rabat" was selected).
+      The 01/09 centre-switcher fix above covered every *list* page, but
+      the *insert modals* were a separate blind spot - `AbsenceModal`,
+      `PaiementModal` (Caisse), `DocumentModal` (both its élève and
+      personnel selectors), `EmploiModal`'s professeur selector, and
+      `Emplois`'/`Notes`' own classe lists were all fetching every
+      élève/personnel/classe across every centre, ignoring the switcher
+      entirely - confirmed live before fixing (a SUPER_ADMIN based at
+      Casablanca, viewing Rabat, still saw and could pick Casablanca
+      students). Same `centreId: selectedCentreId || undefined` pattern
+      added to each. Found + fixed two bare `queryFn: someApi.getAll`
+      references in passing (`Emplois.jsx`'s personnel/classes queries,
+      `Notes.jsx`'s classes query) - react-query calls a bare queryFn
+      with its own internal context object, which was getting forwarded
+      straight through as axios query-string params.
+      Also addressed the UX complaint alongside it: a 150-student
+      alphabetical-by-nothing `<select>` was unusable. New
+      `components/ui/SearchSelect.jsx` - a typeahead combobox (click to
+      open, type to filter by name, accent-insensitive) - replacing the
+      `<select>` in all of the same élève/personnel pickers above.
+      Left classe/matière/filière/type dropdowns as plain `<select>` -
+      those lists are naturally small per centre and wouldn't benefit.
+      Verified end-to-end in the browser: created a temporary Rabat
+      student, confirmed a SUPER_ADMIN switched to Rabat sees only that
+      student in the Absences modal, switched back to Casablanca and
+      confirmed only Casablanca's 8 students appear, and confirmed typing
+      "omar" in the search box correctly filters to one match and
+      selects it. Test data deleted after.
 - [x] ~~No input sanitization on public routes~~ — **fixed 01/09**:
       `candidatures/public` already had a Fastify schema + service-level
       whitelist (Phase 2 Sprint 1). The public `centres`/`filieres` GET

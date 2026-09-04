@@ -8,6 +8,7 @@ import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
 import StatCard from '../../components/ui/StatCard'
+import SearchSelect from '../../components/ui/SearchSelect'
 
 const MODES_PAIEMENT = ['ESPECES', 'VIREMENT', 'CHEQUE', 'EN_LIGNE']
 const TYPES_FRAIS = ['INSCRIPTION', 'SCOLARITE', 'AUTRE']
@@ -17,6 +18,7 @@ const FRAIS_COLORS = { INSCRIPTION: 'blue', SCOLARITE: 'teal', AUTRE: 'gray' }
 // ── PAIEMENT MODAL ─────────────────────────────────
 function PaiementModal({ onClose, caisses }) {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [form, setForm] = useState({
     eleveId: '',
     caisseId: caisses[0]?.id || '',
@@ -31,8 +33,8 @@ function PaiementModal({ onClose, caisses }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const { data: elevesRes } = useQuery({
-    queryKey: ['eleves-all'],
-    queryFn: () => elevesApi.getAll({ limit: 200 })
+    queryKey: ['eleves-all', selectedCentreId],
+    queryFn: () => elevesApi.getAll({ limit: 500, centreId: selectedCentreId || undefined })
   })
   const eleves = elevesRes?.data?.data || []
 
@@ -73,15 +75,16 @@ function PaiementModal({ onClose, caisses }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
-            <select value={form.eleveId} onChange={e => set('eleveId', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-              <option value="">Choisir un élève</option>
-              {eleves.map(e => (
-                <option key={e.id} value={e.id}>
-                  {e.utilisateur.prenom} {e.utilisateur.nom} — {e.matricule}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              value={form.eleveId}
+              onChange={v => set('eleveId', v)}
+              placeholder="Rechercher un élève..."
+              options={eleves.map(e => ({
+                value: e.id,
+                label: `${e.utilisateur.prenom} ${e.utilisateur.nom}`,
+                sublabel: e.matricule
+              }))}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

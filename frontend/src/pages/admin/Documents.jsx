@@ -5,11 +5,13 @@ import { caisseApi } from '../../api/caisse'
 import api from '../../api/axios'
 import { elevesApi } from '../../api/eleves'
 import { personnelApi } from '../../api/personnel'
+import { useCentreStore } from '../../store/centreStore'
 import { toast } from 'sonner'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import SearchSelect from '../../components/ui/SearchSelect'
 
 const TYPES_DOCS = [
   'ATTESTATION_SCOLARITE',
@@ -58,6 +60,7 @@ const TYPE_ICONS = {
 
 function DocumentModal({ onClose }) {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [form, setForm] = useState({
     eleveId: '',
     personnelId: '',
@@ -71,14 +74,14 @@ function DocumentModal({ onClose }) {
   const isPersonnelType = PERSONNEL_TYPES.includes(form.type)
 
   const { data: elevesRes } = useQuery({
-    queryKey: ['eleves-all'],
-    queryFn: () => elevesApi.getAll({ limit: 200 })
+    queryKey: ['eleves-all', selectedCentreId],
+    queryFn: () => elevesApi.getAll({ limit: 500, centreId: selectedCentreId || undefined })
   })
   const eleves = elevesRes?.data?.data || []
 
   const { data: personnelRes } = useQuery({
-    queryKey: ['personnel-all'],
-    queryFn: () => personnelApi.getAll({ limit: 200 }),
+    queryKey: ['personnel-all', selectedCentreId],
+    queryFn: () => personnelApi.getAll({ limit: 500, centreId: selectedCentreId || undefined }),
     enabled: isPersonnelType
   })
   const personnelList = personnelRes?.data?.data || []
@@ -148,28 +151,30 @@ function DocumentModal({ onClose }) {
           {isPersonnelType ? (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Personnel *</label>
-              <select value={form.personnelId} onChange={e => set('personnelId', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-                <option value="">Choisir un membre du personnel</option>
-                {personnelList.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.utilisateur.prenom} {p.utilisateur.nom} — {p.poste}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                value={form.personnelId}
+                onChange={v => set('personnelId', v)}
+                placeholder="Rechercher un membre du personnel..."
+                options={personnelList.map(p => ({
+                  value: p.id,
+                  label: `${p.utilisateur.prenom} ${p.utilisateur.nom}`,
+                  sublabel: p.poste
+                }))}
+              />
             </div>
           ) : (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Élève *</label>
-              <select value={form.eleveId} onChange={e => { set('eleveId', e.target.value); set('paiementId', '') }}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-                <option value="">Choisir un élève</option>
-                {eleves.map(e => (
-                  <option key={e.id} value={e.id}>
-                    {e.utilisateur.prenom} {e.utilisateur.nom} — {e.matricule}
-                  </option>
-                ))}
-              </select>
+              <SearchSelect
+                value={form.eleveId}
+                onChange={v => { set('eleveId', v); set('paiementId', '') }}
+                placeholder="Rechercher un élève..."
+                options={eleves.map(e => ({
+                  value: e.id,
+                  label: `${e.utilisateur.prenom} ${e.utilisateur.nom}`,
+                  sublabel: e.matricule
+                }))}
+              />
             </div>
           )}
 

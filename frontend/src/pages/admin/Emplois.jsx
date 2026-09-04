@@ -4,10 +4,12 @@ import { emploisApi } from '../../api/emplois'
 import { classesApi } from '../../api/classes'
 import { matieresApi } from '../../api/matieres'
 import { personnelApi } from '../../api/personnel'
+import { useCentreStore } from '../../store/centreStore'
 import { toast } from 'sonner'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Badge from '../../components/ui/Badge'
+import SearchSelect from '../../components/ui/SearchSelect'
 
 const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
 const JOURS_LABELS = { LUNDI: 'Lundi', MARDI: 'Mardi', MERCREDI: 'Mercredi', JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi' }
@@ -37,6 +39,7 @@ const DEFAULT_HORAIRES = {
 
 function EmploiModal({ onClose, classeId, typeFormation }) {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [heureDebutDefault, heureFinDefault] = DEFAULT_HORAIRES[typeFormation] || DEFAULT_HORAIRES.JOUR
   const [form, setForm] = useState({
     classeId,
@@ -50,8 +53,17 @@ function EmploiModal({ onClose, classeId, typeFormation }) {
   const [error, setError] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const { data: matieresRes } = useQuery({ queryKey: ['matieres-all'], queryFn: matieresApi.getAll })
-  const { data: personnelRes } = useQuery({ queryKey: ['personnel-all'], queryFn: personnelApi.getAll })
+  const { data: matieresRes } = useQuery({ queryKey: ['matieres-all'], queryFn: () => matieresApi.getAll() })
+  // Was `queryFn: personnelApi.getAll` (a bare reference) - react-query
+  // calls the queryFn with its own context object ({queryKey, signal,
+  // ...}), which personnelApi.getAll would then forward straight through
+  // as axios `params`, leaking react-query internals into the query
+  // string. Also had no centreId at all, same cross-centre leak as the
+  // élève selectors elsewhere on this pass.
+  const { data: personnelRes } = useQuery({
+    queryKey: ['personnel-all', selectedCentreId],
+    queryFn: () => personnelApi.getAll({ limit: 500, centreId: selectedCentreId || undefined })
+  })
 
   const matieres = matieresRes?.data?.data || []
   const personnel = personnelRes?.data?.data || []
@@ -115,15 +127,16 @@ function EmploiModal({ onClose, classeId, typeFormation }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Professeur *</label>
-            <select value={form.professeurId} onChange={e => set('professeurId', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
-              <option value="">Choisir</option>
-              {personnel.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.utilisateur.prenom} {p.utilisateur.nom}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              value={form.professeurId}
+              onChange={v => set('professeurId', v)}
+              placeholder="Rechercher un professeur..."
+              options={personnel.map(p => ({
+                value: p.id,
+                label: `${p.utilisateur.prenom} ${p.utilisateur.nom}`,
+                sublabel: p.poste
+              }))}
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Salle</label>
@@ -149,13 +162,17 @@ function EmploiModal({ onClose, classeId, typeFormation }) {
 
 export default function Emplois() {
   const qc = useQueryClient()
+  const { selectedCentreId } = useCentreStore()
   const [classeId, setClasseId] = useState('')
   const [modal, setModal] = useState(false)
   const [confirm, setConfirm] = useState(null)
 
+  // Same bare-reference issue as personnelApi.getAll above, plus no
+  // centreId - a SUPER_ADMIN viewing another centre via the switcher was
+  // still picking a créneau's classe from their own centre's list.
   const { data: classesRes } = useQuery({
-    queryKey: ['classes'],
-    queryFn: classesApi.getAll
+    queryKey: ['classes', selectedCentreId],
+    queryFn: () => classesApi.getAll({ centreId: selectedCentreId || undefined })
   })
 
   const { data, isLoading } = useQuery({
