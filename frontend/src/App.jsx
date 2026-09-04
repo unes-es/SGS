@@ -47,6 +47,9 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'))
 const Rapports = lazy(() => import('./pages/admin/Rapports'))
 const Parametres = lazy(() => import('./pages/admin/Parametres'))
 const Users = lazy(() => import('./pages/admin/Users'))
+const Actualites = lazy(() => import('./pages/admin/Actualites'))
+const Evenements = lazy(() => import('./pages/admin/Evenements'))
+const Messages = lazy(() => import('./pages/admin/Messages'))
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -168,7 +171,9 @@ export default function App() {
               <Route path="candidatures" element={<Candidatures />} />
               <Route path="notifications" element={<Notifications/>} />
               <Route path="portail" element={<Soon name="Portail Parents" />} />
-              <Route path="vitrine" element={<Soon name="Site Vitrine" />} />
+              <Route path="actualites" element={<Actualites />} />
+              <Route path="evenements" element={<Evenements />} />
+              <Route path="messages" element={<Messages />} />
               <Route path="parametres" element={<Parametres />} />
               <Route path="rapports" element={<Rapports />} />
               <Route path="utilisateurs" element={<Users />} />

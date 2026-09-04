@@ -5,6 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SGS — Gestion Scolaire</title>
+
+    <!-- Phase 3 — SEO pass. This is a single-page app: only the "/"
+         landing page is meaningfully crawlable content (everything under
+         /admin, /candidat, /portail is a private application, see
+         robots.txt), so these tags describe the school/landing page, not
+         a generic per-route template. -->
+    <meta name="description" content="SGS — École Supérieure de Gestion et Sciences. Établissement privé avec deux campus (Casablanca, Rabat) proposant des filières en gestion, commerce et sciences. Inscriptions ouvertes." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://sgs.nextsi.ma/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sgs.nextsi.ma/" />
+    <meta property="og:title" content="SGS — École Supérieure de Gestion et Sciences" />
+    <meta property="og:description" content="Établissement privé avec deux campus (Casablanca, Rabat) proposant des filières en gestion, commerce et sciences. Inscriptions ouvertes." />
+    <meta property="og:locale" content="fr_MA" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="SGS — École Supérieure de Gestion et Sciences" />
+    <meta name="twitter:description" content="Établissement privé avec deux campus (Casablanca, Rabat) proposant des filières en gestion, commerce et sciences." />
+
+    <!-- 💡 Product idea: og:image/twitter:image are deliberately omitted -
+         there's no real social-share image asset yet (favicon.svg is a
+         vector icon, not a 1200x630 share card, and a missing/broken
+         og:image often looks worse than none at all). Worth generating a
+         real one once branding assets exist beyond the logo. -->
   </head>
   <body>
     <div id="root"></div>

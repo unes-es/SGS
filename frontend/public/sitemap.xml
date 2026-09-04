@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Single-page app - only "/" is real crawlable content (see
+     robots.txt for the private routes disallowed). Update priority/
+     changefreq or add more <url> entries if the site vitrine ever grows
+     distinct crawlable pages beyond the one landing page. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://sgs.nextsi.ma/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

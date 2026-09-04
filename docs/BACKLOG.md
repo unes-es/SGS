@@ -315,13 +315,59 @@ until a real sending domain is verified.
 sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
 ---
 
-## 🔮 PHASE 3 — Advanced (Not started)
+## 🔮 PHASE 3 — Advanced (In progress)
 
-### Site Vitrine
-- [ ] CMS for actualités and événements (manage from admin)
-- [ ] Gestion des événements pour affichage vitrine
-- [ ] SEO optimization
-- [ ] Contact form wired to backend
+### Site Vitrine ✅ (done 04/09, deployed + verified end-to-end)
+- [x] CMS for actualités and événements (manage from admin) — new
+      `Actualite`/`Evenement` Prisma models, `actualites`/`evenements`
+      backend modules (public read + SUPER_ADMIN/DIRECTEUR-gated write,
+      matching `candidatures.routes.js`'s public/protected split), new
+      admin pages under a "SITE VITRINE" sidebar section. `centreId` is
+      nullable on both models — null means "both campuses", matching how
+      the landing page already presents itself as one shared site rather
+      than per-centre.
+- [x] Gestion des événements pour affichage vitrine — same module as
+      above; public feed only shows published + not-yet-passed events
+      (`dateDebut >= today`), soonest first, so past events stay in the
+      DB for admin history without cluttering the public agenda.
+- [x] Contact form wired to backend — new `MessageContact` model +
+      `contact` module (`POST /api/contact` public, same
+      schema-validation + `additionalProperties: false` pattern as
+      `candidatures/public`). Submitting broadcasts an in-app
+      `CONTACT`-type notification to every active centre's staff (new
+      admin "Messages" page, badge in the sidebar/topbar like
+      Candidatures/Notifications already had). No outbound email to staff
+      on submission (in-app notification only) - could add later via
+      `mailer.js` if staff want an email copy too, not built.
+- [x] SEO optimization — `index.html` had zero meta tags beyond
+      `<title>` before this; added description, robots, canonical, OG,
+      and Twitter card tags (describing the landing page itself, since
+      this is a single-page app - `/admin`, `/candidat`, `/portail` are
+      private application routes, not content). New `robots.txt`
+      (disallows the private routes) and a one-URL `sitemap.xml`.
+      💡 Product idea: no `og:image`/`twitter:image` yet - there's no real
+      1200x630 social-share asset, only the vector favicon, and a broken
+      image tag looks worse than none. Worth generating one once branding
+      assets exist beyond the logo.
+- Old hardcoded `ARTICLES`/`EVENTS` arrays in
+  `Actualites.jsx`/`Evenements.jsx` (public sections) replaced with real
+  API calls; both sections render `null` (not an empty header) when
+  nothing's published yet, so the site doesn't show an awkward blank
+  "La vie de l'école" section before staff publish a first item.
+- Found + fixed in passing: `/admin/utilisateurs` had no entry in
+  `Topbar.jsx`'s per-page title map (silently falling back to the
+  generic title) - a pre-existing gap from when that page shipped, not
+  introduced by this pass.
+- Verified end-to-end via a temporary QA admin account (created and
+  deleted after testing, not a real credential): published a test
+  article and événement, confirmed both render correctly on the public
+  landing page with real data; submitted the public Contact form through
+  the actual browser UI (not just curl), confirmed the message landed in
+  the admin Messages inbox with the right stats/filter behavior, the
+  in-app notification broadcast fired for both centres, and "Marquer
+  traité" correctly moves a message between the À traiter/Traités tabs.
+  All test data (article, événement, message, notifications, QA account)
+  deleted after verification - nothing left behind in the DB.
 ### Infrastructure & DevOps
 - [x] Domain + SSL (sgs.nextsi.ma) — verified live 01/09, `certbot.timer`
       active, cert valid to 2026-11-24. The "auto-renewal broken"

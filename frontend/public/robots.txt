@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /$
+Allow: /verify
+Disallow: /admin
+Disallow: /candidat
+Disallow: /portail
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://sgs.nextsi.ma/sitemap.xml

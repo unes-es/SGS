@@ -96,6 +96,11 @@ fastify.register(require('./modules/rapports/rapports.routes'), { prefix: '/api/
 fastify.register(require('./modules/portal/portal.routes'), { prefix: '/api/portal' })
 fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' })
 
+// Phase 3 — Site vitrine CMS
+fastify.register(require('./modules/actualites/actualites.routes'), { prefix: '/api/actualites' })
+fastify.register(require('./modules/evenements/evenements.routes'), { prefix: '/api/evenements' })
+fastify.register(require('./modules/contact/contact.routes'), { prefix: '/api/contact' })
+
 const cron = require('node-cron')
 const notifService = require('./modules/notifications/notifications.service')
 

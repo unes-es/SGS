@@ -115,6 +115,7 @@ enum TypeNotification {
   CANDIDATURE
   PAIEMENT
   SYSTEME
+  CONTACT
 }
 
 enum TypeCandidatureDocument {
@@ -191,6 +192,8 @@ model Centre {
   salaires        Salaire[]
   candidatures    Candidature[]
   notifications   Notification[]
+  actualites      Actualite[]
+  evenements      Evenement[]
 
   @@map("centres")
 }
@@ -231,6 +234,8 @@ model Utilisateur {
   // account - distinct from candidaturesTreatees (staff processing OTHER
   // people's candidatures).
   candidaturesSoumises Candidature[] @relation("CandidatUser")
+  actualitesEcrites    Actualite[]
+  messagesTraites      MessageContact[]
 
   @@index([centreId])
   @@map("utilisateurs")
@@ -633,4 +638,75 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+// ─── PHASE 3 — SITE VITRINE CMS ──────────────────
+
+// centreId nullable = applies to both campuses (matches how the public
+// site already presents itself: one shared landing page, not one per
+// centre - see Evenements.jsx's hardcoded "Casa & Rabat" entries before
+// this model existed). Set it when a piece of content is genuinely
+// specific to one campus.
+model Actualite {
+  id          String    @id @default(uuid())
+  centreId    String?
+  categorie   String
+  titre       String
+  extrait     String
+  contenu     String
+  imageUrl    String?
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  auteurId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  centre      Centre?      @relation(fields: [centreId], references: [id])
+  auteur      Utilisateur? @relation(fields: [auteurId], references: [id])
+
+  @@index([centreId])
+  @@index([isPublished, publishedAt])
+  @@map("actualites")
+}
+
+model Evenement {
+  id          String    @id @default(uuid())
+  centreId    String?
+  type        String
+  titre       String
+  description String
+  lieu        String
+  dateDebut   DateTime
+  dateFin     DateTime?
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  centre      Centre?      @relation(fields: [centreId], references: [id])
+
+  @@index([centreId])
+  @@index([isPublished, dateDebut])
+  @@map("evenements")
+}
+
+// Public contact form submissions (Contact.jsx). No FK to Utilisateur -
+// the sender isn't necessarily anyone in the system yet, same reasoning
+// as Candidature not requiring an existing account.
+model MessageContact {
+  id          String    @id @default(uuid())
+  prenom      String
+  nom         String
+  email       String
+  telephone   String?
+  sujet       String
+  message     String
+  isTraite    Boolean   @default(false)
+  traitePar   String?
+  traiteAt    DateTime?
+  createdAt   DateTime  @default(now())
+
+  traitant    Utilisateur? @relation(fields: [traitePar], references: [id])
+
+  @@index([isTraite])
+  @@map("messages_contact")
 }

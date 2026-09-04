@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { candidaturesApi } from '../../api/candidatures'
 import { notificationsApi } from '../../api/notifications'
 import { centresApi } from '../../api/centres'
+import { contactApi } from '../../api/contact'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore()
@@ -37,6 +38,12 @@ export default function Sidebar({ isOpen, onClose }) {
     refetchInterval: 30000
   })
 
+  const { data: msgData } = useQuery({
+    queryKey: ['messages-contact-stats'],
+    queryFn: () => contactApi.getAll({ isTraite: 'false', limit: 1 }),
+    refetchInterval: 60000
+  })
+
   // The indicator below read user?.centre?.nom, a field that has never
   // existed on this object (login only ever returns a flat centreId, see
   // authStore.js/auth.service.js) - it's shown "Centre" as a static
@@ -54,9 +61,11 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const pendingCandidatures = candStats?.data?.data?.enAttente || 0
   const unreadNotifs = notifData?.data?.meta?.unread || 0
+  const pendingMessages = msgData?.data?.meta?.nonTraites || 0
   const BADGES = {
     '/admin/candidatures': pendingCandidatures,
     '/admin/notifications': unreadNotifs,
+    '/admin/messages': pendingMessages,
   }
 
   // Grouped by what each thing is actually for, not by which development
@@ -82,11 +91,14 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: '📋', label: 'Candidatures', to: '/admin/candidatures', badge: pendingCandidatures },
     { icon: '🔔', label: 'Notifications', to: '/admin/notifications', badge: unreadNotifs },
     { icon: '👨‍👩‍👧', label: 'Portail Parents', to: '/admin/portail' },
+    { section: 'SITE VITRINE' },
+    { icon: '📰', label: 'Actualités', to: '/admin/actualites' },
+    { icon: '📅', label: 'Événements', to: '/admin/evenements' },
+    { icon: '💬', label: 'Messages', to: '/admin/messages', badge: pendingMessages },
     { section: 'RAPPORTS' },
     { icon: '📈', label: 'Rapports', to: '/admin/rapports' },
     { section: 'SYSTÈME' },
     { icon: '👥', label: 'Utilisateurs', to: '/admin/utilisateurs' },
-    { icon: '🌍', label: 'Site Vitrine', to: '/admin/vitrine' },
     { icon: '⚙️', label: 'Paramètres', to: '/admin/parametres' },
   ]
 

@@ -13,6 +13,7 @@ const TYPE_ICONS = {
     CANDIDATURE: '📋',
     PAIEMENT: '💰',
     SYSTEME: '⚙️',
+    CONTACT: '💬',
 }
 
 const TYPE_COLORS = {
@@ -21,6 +22,7 @@ const TYPE_COLORS = {
     CANDIDATURE: 'blue',
     PAIEMENT: 'green',
     SYSTEME: 'gray',
+    CONTACT: 'violet',
 }
 
 export default function Notifications() {

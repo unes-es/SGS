@@ -1,9 +1,36 @@
 import { useState } from 'react'
+import axios from 'axios'
 
 export default function Contact() {
   const [form, setForm]   = useState({ prenom:'', nom:'', email:'', telephone:'', sujet:'Renseignement sur une filière', message:'' })
   const [sent, setSent]   = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const set = (k, v) => setForm(f => ({...f,[k]:v}))
+
+  const handleSubmit = async () => {
+    if (!form.prenom || !form.nom || !form.email || !form.message) {
+      setError('Merci de remplir les champs obligatoires (*)')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await axios.post('/api/contact', {
+        prenom:    form.prenom,
+        nom:       form.nom,
+        email:     form.email,
+        telephone: form.telephone,
+        sujet:     form.sujet,
+        message:   form.message,
+      })
+      setSent(true)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Une erreur est survenue, veuillez réessayer.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <section id="contact" className="py-24 bg-white">
@@ -71,8 +98,8 @@ export default function Contact() {
                   <p className="text-gray-400 text-sm">Réponse dans les 24 heures</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <FI label="Prénom"  value={form.prenom}  onChange={v => set('prenom',v)} />
-                  <FI label="Nom"     value={form.nom}     onChange={v => set('nom',v)} />
+                  <FI label="Prénom *"  value={form.prenom}  onChange={v => set('prenom',v)} />
+                  <FI label="Nom *"     value={form.nom}     onChange={v => set('nom',v)} />
                 </div>
                 <FI label="Email *"   value={form.email}   onChange={v => set('email',v)}   type="email" />
                 <FI label="Téléphone" value={form.telephone} onChange={v => set('telephone',v)} />
@@ -94,10 +121,14 @@ export default function Contact() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-blue-500 resize-none"
                   />
                 </div>
+                {error && (
+                  <p className="text-red-500 text-xs font-semibold">{error}</p>
+                )}
                 <button
-                  onClick={() => { if (form.email && form.message) setSent(true) }}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-sm transition">
-                  📤 Envoyer le message
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition">
+                  {loading ? 'Envoi...' : '📤 Envoyer le message'}
                 </button>
               </div>
             )}

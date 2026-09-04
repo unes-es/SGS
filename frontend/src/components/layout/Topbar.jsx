@@ -24,8 +24,14 @@ const TITLES = {
   '/admin/notifications':{ title: 'Notifications',      sub: 'Alertes et messages' },
   '/admin/portail':      { title: 'Portail Parents',    sub: 'Accès familles' },
   '/admin/rapports':     { title: 'Rapports & KPI',     sub: 'Tableaux de bord' },
-  '/admin/vitrine':      { title: 'Site Vitrine',       sub: 'Contenu public' },
+  '/admin/actualites':   { title: 'Actualités',         sub: 'Site vitrine' },
+  '/admin/evenements':   { title: 'Événements',         sub: 'Site vitrine' },
+  '/admin/messages':     { title: 'Messages',           sub: 'Formulaire de contact' },
   '/admin/parametres':   { title: 'Paramètres',         sub: 'Configuration' },
+  // Missing before this pass, not something this change introduced -
+  // /admin/utilisateurs (Phase 3) never got an entry here, so it always
+  // fell through to the generic fallback title below.
+  '/admin/utilisateurs': { title: 'Utilisateurs',       sub: 'Comptes et accès' },
 }
 
 const TYPE_ICONS = {
@@ -34,6 +40,7 @@ const TYPE_ICONS = {
   CANDIDATURE: '📋',
   PAIEMENT:    '💰',
   SYSTEME:     '⚙️',
+  CONTACT:     '💬',
 }
 
 export default function Topbar({ onMenuClick }) {
