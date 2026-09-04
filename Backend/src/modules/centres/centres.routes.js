@@ -23,6 +23,7 @@ async function centresRoutes(fastify) {
   fastify.get('/:id', { schema: idParamSchema }, ctrl.getById)
 
   // protected routes
+  fastify.get('/admin/all', { preHandler: [authenticate, authorize('SUPER_ADMIN')] }, ctrl.getAllAdmin)
   fastify.post('/',    { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.create)
   fastify.put('/:id',  { preHandler: [authenticate, authorize('SUPER_ADMIN', 'DIRECTEUR')] }, ctrl.update)
   fastify.delete('/:id', { preHandler: [authenticate, authorize('SUPER_ADMIN')] }, ctrl.remove)

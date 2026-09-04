@@ -98,6 +98,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { section: 'RAPPORTS' },
     { icon: '📈', label: 'Rapports', to: '/admin/rapports' },
     { section: 'SYSTÈME' },
+    { icon: '🏫', label: 'Centres', to: '/admin/centres' },
     { icon: '👥', label: 'Utilisateurs', to: '/admin/utilisateurs' },
     { icon: '⚙️', label: 'Paramètres', to: '/admin/parametres' },
   ]

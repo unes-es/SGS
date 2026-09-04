@@ -7,6 +7,32 @@ async function getAll() {
   })
 }
 
+// Staff-only counterpart to getAll() - includes inactive centres (so a
+// SUPER_ADMIN can find and reactivate one) and per-centre headcounts, for
+// the Centres management admin page. getAll() itself stays public and
+// active-only on purpose (the landing page reads it directly, unauthed).
+//
+// Eleve has a centreId column but no declared Prisma relation back to
+// Centre (only Classe does), so it can't go through _count/include like
+// utilisateurs/personnel below - grouped separately and merged in.
+async function getAllAdmin() {
+  const [centres, eleveCounts] = await Promise.all([
+    prisma.centre.findMany({
+      orderBy: { nom: 'asc' },
+      include: {
+        _count: { select: { utilisateurs: true, personnel: true } }
+      }
+    }),
+    prisma.eleve.groupBy({ by: ['centreId'], _count: true })
+  ])
+
+  const elevesByCentre = Object.fromEntries(eleveCounts.map(e => [e.centreId, e._count]))
+  return centres.map(c => ({
+    ...c,
+    _count: { ...c._count, eleves: elevesByCentre[c.id] || 0 }
+  }))
+}
+
 async function getById(id) {
   const centre = await prisma.centre.findUnique({ where: { id } })
   if (!centre) throw { statusCode: 404, message: 'Centre non trouvé' }
@@ -69,4 +95,4 @@ async function updateLogo(id, { buffer, mimetype }) {
   })
 }
 
-module.exports = { getAll, getById, create, update, remove, updateLogo }
+module.exports = { getAll, getAllAdmin, getById, create, update, remove, updateLogo }

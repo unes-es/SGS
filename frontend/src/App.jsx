@@ -47,6 +47,7 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'))
 const Rapports = lazy(() => import('./pages/admin/Rapports'))
 const Parametres = lazy(() => import('./pages/admin/Parametres'))
 const Users = lazy(() => import('./pages/admin/Users'))
+const Centres = lazy(() => import('./pages/admin/Centres'))
 const Actualites = lazy(() => import('./pages/admin/Actualites'))
 const Evenements = lazy(() => import('./pages/admin/Evenements'))
 const Messages = lazy(() => import('./pages/admin/Messages'))
@@ -174,6 +175,7 @@ export default function App() {
               <Route path="actualites" element={<Actualites />} />
               <Route path="evenements" element={<Evenements />} />
               <Route path="messages" element={<Messages />} />
+              <Route path="centres" element={<Centres />} />
               <Route path="parametres" element={<Parametres />} />
               <Route path="rapports" element={<Rapports />} />
               <Route path="utilisateurs" element={<Users />} />

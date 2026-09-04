@@ -419,6 +419,41 @@ fixing (see verification below), not just a theoretical read of the code.
 - Deployed to production the same session; see `docs/DEPLOYMENT.md`
   deploy process - no migration needed (the fix is authorization logic
   only, not a schema change).
+
+### Unplanned — Centres management admin page ✅ (done 04/09, deployed + verified)
+Raised alongside the isolation fix above. The backend already had full
+CRUD for centres (`centres.service.js` had `create`/`update`/`remove`/
+`updateLogo` from the start) - there was simply no admin page to reach
+any of it beyond editing the *currently selected* centre's branding in
+Parametres. No way to add a third campus, or find/reactivate a
+deactivated one, from the UI at all.
+- [x] New `GET /centres/admin/all` (SUPER_ADMIN-only) - `getAll()` stays
+      public/active-only as before (the landing page reads it directly,
+      unauthed); the admin variant includes inactive centres and a
+      per-centre headcount (élèves/personnel). Eleve has a `centreId`
+      column but no declared Prisma relation back to `Centre`, so its
+      count is a separate `groupBy` merged in, not a `_count.include`
+      like personnel/utilisateurs.
+- [x] New `/admin/centres` page (SUPER_ADMIN-only, matches the route's own
+      gating) - list with headcounts, create modal (nom/slug/ville/
+      adresse/téléphone/email, slug auto-generated from nom until
+      manually edited), activate/deactivate.
+- [x] Found + fixed while wiring the deactivate button: routing it
+      through a plain `PUT { isActive: false }` would have quietly let a
+      DIRECTEUR deactivate a whole campus - `centres.routes.js`'s `DELETE`
+      (which is what actually flips `isActive` off) is deliberately
+      SUPER_ADMIN-only, stricter than `PUT`'s SUPER_ADMIN+DIRECTEUR.
+      Deactivate now goes through `centresApi.deactivate()` → `DELETE`;
+      reactivate stays a `PUT { isActive: true }`, consistent with
+      `PUT` already being DIRECTEUR-allowed for any other centre edit.
+- Logo/couleur editing deliberately stays in Parametres (scoped to
+  whichever centre the switcher has selected) rather than being
+  duplicated here - this page is about the list itself.
+- Verified end-to-end in the browser: created a real test campus,
+  confirmed it appeared with correct auto-slug and 0 headcounts,
+  deactivated it and confirmed it dropped out of the public `GET
+  /centres` response immediately, reactivated it, then deleted the test
+  centre and QA account - nothing left behind.
 ### Infrastructure & DevOps
 - [x] Domain + SSL (sgs.nextsi.ma) — verified live 01/09, `certbot.timer`
       active, cert valid to 2026-11-24. The "auto-renewal broken"

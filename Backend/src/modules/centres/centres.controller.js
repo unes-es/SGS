@@ -5,6 +5,10 @@ module.exports = {
     return { data: await service.getAll() }
   },
 
+  async getAllAdmin(req, reply) {
+    return { data: await service.getAllAdmin() }
+  },
+
   async getById(req, reply) {
     const data = await service.getById(req.params.id)
     return { data }

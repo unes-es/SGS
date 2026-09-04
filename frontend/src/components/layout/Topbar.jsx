@@ -32,6 +32,7 @@ const TITLES = {
   // /admin/utilisateurs (Phase 3) never got an entry here, so it always
   // fell through to the generic fallback title below.
   '/admin/utilisateurs': { title: 'Utilisateurs',       sub: 'Comptes et accès' },
+  '/admin/centres':      { title: 'Centres',            sub: 'Campus SGS' },
 }
 
 const TYPE_ICONS = {

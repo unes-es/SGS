@@ -35,6 +35,7 @@ const TITLES = {
   '/admin/actualites':    'Actualités',
   '/admin/evenements':    'Événements',
   '/admin/messages':      'Messages',
+  '/admin/centres':       'Centres',
   '/admin/parametres':    'Paramètres',
   '/admin/rapports':      'Rapports & KPI',
   '/admin/utilisateurs':  'Utilisateurs',
