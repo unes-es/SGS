@@ -217,12 +217,18 @@ section for detail — moved here since it's now shipped, not debt.
   Resend account owner's own inbox until a real sending domain is verified.
   Confirmed working end-to-end to that inbox; other recipients get a
   logged, non-fatal 422 from Resend (`sendEmail` never throws).
-- ⚠️ Production `docker-compose.yml` backend service does **not** yet have
-  `RESEND_API_KEY`/`EMAIL_FROM` wired into its `environment:` block (VPS
-  `.env` has both set) — add
-  `RESEND_API_KEY: ${RESEND_API_KEY}` / `EMAIL_FROM: ${EMAIL_FROM}` next to
-  the existing `FRONTEND_URL` line, then redeploy, to make production email
-  sending live.
+- [x] Production `docker-compose.yml` backend service now has
+  `RESEND_API_KEY`/`EMAIL_FROM` wired into its `environment:` block —
+  **fixed 03/09**, added next to `FRONTEND_URL` on the live VPS compose
+  file directly (`/opt/apps/sgs/docker-compose.yml`), `docker compose up -d
+  backend` to recreate, confirmed both vars present via `printenv` inside
+  the container and the backend came back up clean. Not yet verified with
+  a real end-to-end send (would need a live candidature/reset-password
+  flow to trigger one) — do that before assuming delivery actually works,
+  not just that the key is present.
+- ⚠️ Still on the `resend.dev` sandbox domain — even now that the key is
+  wired, delivery is limited to the Resend account owner's own inbox until
+  a real sending domain is verified.
 ### Sprint 2 — Candidat Portal ✅ (done 01/09, deployed + verified end-to-end)
 - [x] Candidat dashboard: view candidature status (shipped Sprint 1)
 - [x] Document upload on candidature (CIN, diplôme, photo) — 5MB cap,
@@ -267,13 +273,11 @@ section for detail — moved here since it's now shipped, not debt.
       export in rapports.service.js
 
 **Phase 2.2 (Portail Candidat/Étudiant) is now fully shipped — all 4
-sprints done and deployed to sgs.nextsi.ma.** Two known follow-ups, not
-blocking: (1) production `docker-compose.yml` still needs
-`RESEND_API_KEY`/`EMAIL_FROM` wired into the backend service's
-`environment:` block for outbound email to actually work in prod (see
-Sprint 1 note above); (2) Resend itself is still on the `resend.dev`
-sandbox domain, so even once wired, delivery is limited to the Resend
-account owner's own inbox until a real sending domain is verified.
+sprints done and deployed to sgs.nextsi.ma.** One known follow-up, not
+blocking: Resend is still on the `resend.dev` sandbox domain, so even
+though the API key is now wired into production (fixed 03/09, see Sprint 1
+note above), delivery is limited to the Resend account owner's own inbox
+until a real sending domain is verified.
 ---
 
 ## 📋 PHASE 2.3 — Programmes & Formations ✅ (fully shipped 01/09)
