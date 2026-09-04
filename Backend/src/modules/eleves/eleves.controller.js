@@ -27,7 +27,7 @@ module.exports = {
   },
 
   async getById(req, reply) {
-    const data = await service.getById(req.params.id)
+    const data = await service.getById(req.params.id, req.user)
     return { data }
   },
 
@@ -45,12 +45,12 @@ module.exports = {
   },
 
   async update(req, reply) {
-    const data = await service.update(req.params.id, req.body)
+    const data = await service.update(req.params.id, req.body, req.user)
     return { data }
   },
 
   async updateStatut(req, reply) {
-    const data = await service.updateStatut(req.params.id, req.body.statut)
+    const data = await service.updateStatut(req.params.id, req.body.statut, req.user)
     return { data }
   }
 }

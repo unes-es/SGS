@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll({ eleveId, type, page = 1, limit = 20 }) {
   const skip = (page - 1) * limit
@@ -30,7 +31,7 @@ async function getAll({ eleveId, type, page = 1, limit = 20 }) {
   }
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const doc = await prisma.document.findUnique({
     where: { id },
     include: {
@@ -42,10 +43,17 @@ async function getById(id) {
           }
         }
       },
+      personnel: { select: { centreId: true } },
       genereParUser: { select: { prenom: true, nom: true } }
     }
   })
   if (!doc) throw { statusCode: 404, message: 'Document non trouvé' }
+  // A document is tied to an élève OR a personnel record, never both -
+  // same either/or as generatePdf()'s documentCentreId below. Neither set
+  // (a generic AUTRE document with no target) isn't ambiguous cross-
+  // centre data, so there's nothing to check against.
+  const documentCentreId = doc.eleve?.centreId ?? doc.personnel?.centreId
+  if (documentCentreId) assertSameCentre(documentCentreId, user, 'Document non trouvé')
   return doc
 }
 
@@ -83,12 +91,19 @@ async function create(data, generePar) {
   })
 }
 
-async function remove(id) {
-  await getById(id)
+async function remove(id, user) {
+  await getById(id, user)
   return prisma.document.delete({ where: { id } })
 }
 
-async function getByEleve(eleveId) {
+async function getByEleve(eleveId, user) {
+  if (user && user.role !== 'SUPER_ADMIN') {
+    const eleve = await prisma.eleve.findUnique({ where: { id: eleveId }, select: { centreId: true } })
+    // A nonexistent eleveId here isn't a leak either way - falls through
+    // to an empty list below exactly like a real one with zero documents
+    // would, so there's nothing to distinguish by 404ing separately.
+    if (eleve) assertSameCentre(eleve.centreId, user, 'Élève non trouvé')
+  }
   return prisma.document.findMany({
     where: { eleveId },
     orderBy: { createdAt: 'desc' }
@@ -113,7 +128,7 @@ const { createBaseDocument, addFooter } = require('../../utils/pdf')
 const { generateVerifyQr } = require('../../utils/qr')
 const { generateAttestationScolarite, generateRecuPaiement, generateAttestationTravail } = require('../../utils/pdfDocuments')
 
-async function generatePdf(id) {
+async function generatePdf(id, user) {
   const doc = await prisma.document.findUnique({
     where: { id },
     include: {
@@ -129,6 +144,10 @@ async function generatePdf(id) {
   })
 
   if (!doc) throw { statusCode: 404, message: 'Document non trouvé' }
+  // Same isolation check as getById() above - this fetches independently
+  // rather than reusing getById(), so it needs its own.
+  const ownerCentreId = doc.eleve?.centreId ?? doc.personnel?.centreId
+  if (ownerCentreId) assertSameCentre(ownerCentreId, user, 'Document non trouvé')
 
   // The document's own centre - was `prisma.centre.findFirst()`, which
   // always grabbed whichever centre happens to sort first regardless of

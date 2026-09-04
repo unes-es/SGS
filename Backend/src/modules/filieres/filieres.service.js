@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll(centreId) {
   return prisma.filiere.findMany({
@@ -10,7 +11,11 @@ async function getAll(centreId) {
   })
 }
 
-async function getById(id) {
+// `user` is optional and deliberately unused on the public path -
+// filieres.routes.js's GET /:id has no auth at all (the landing page
+// reads filière info directly), so there's no caller centre to check
+// against there. Every protected write below passes it, though.
+async function getById(id, user) {
   const filiere = await prisma.filiere.findUnique({
     where: { id },
     include: {
@@ -19,6 +24,7 @@ async function getById(id) {
     }
   })
   if (!filiere) throw { statusCode: 404, message: 'Filière non trouvée' }
+  assertSameCentre(filiere.centreId, user, 'Filière non trouvée')
   return filiere
 }
 
@@ -28,13 +34,13 @@ async function create(data, centreId) {
   return prisma.filiere.create({ data: { ...data,dureeMois: parseInt(data.dureeMois), centreId } })
 }
 
-async function update(id, data) {
-  await getById(id)
+async function update(id, data, user) {
+  await getById(id, user)
   return prisma.filiere.update({ where: { id }, data })
 }
 
-async function remove(id) {
-  await getById(id)
+async function remove(id, user) {
+  await getById(id, user)
   return prisma.filiere.update({ where: { id }, data: { isActive: false } })
 }
 
@@ -71,8 +77,8 @@ async function getTarifs(filiereId) {
   }))
 }
 
-async function upsertTarif(filiereId, typeFormation, fraisScolarite) {
-  await getById(filiereId)
+async function upsertTarif(filiereId, typeFormation, fraisScolarite, user) {
+  await getById(filiereId, user)
   return prisma.formationTarif.upsert({
     where: { filiereId_typeFormation: { filiereId, typeFormation } },
     create: { filiereId, typeFormation, fraisScolarite },
@@ -82,8 +88,11 @@ async function upsertTarif(filiereId, typeFormation, fraisScolarite) {
 
 // Deleting the override just reverts that format back to the filiere's
 // own fraisScolarite - not an error if there was no override to begin
-// with (idempotent "reset to default").
-async function removeTarif(filiereId, typeFormation) {
+// with (idempotent "reset to default"). Still centre-checked first, same
+// as upsertTarif - only getById() throws, so the check has to happen
+// before the (otherwise unconditional) deleteMany.
+async function removeTarif(filiereId, typeFormation, user) {
+  await getById(filiereId, user)
   await prisma.formationTarif.deleteMany({ where: { filiereId, typeFormation } })
 }
 

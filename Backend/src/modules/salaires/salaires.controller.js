@@ -10,7 +10,7 @@ module.exports = {
   },
 
   async getById(req, reply) {
-    return { data: await service.getById(req.params.id) }
+    return { data: await service.getById(req.params.id, req.user) }
   },
 
   async create(req, reply) {
@@ -22,7 +22,7 @@ module.exports = {
   },
 
   async payer(req, reply) {
-    const data = await service.payer(req.params.id, req.body)
+    const data = await service.payer(req.params.id, req.body, req.user)
     return { data }
   },
 

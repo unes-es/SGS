@@ -132,13 +132,16 @@ async function getMyEleveDocuments(userId) {
 
 const documentsService = require('../documents/documents.service')
 
-// documents.service.js's own generatePdf(id)/getById(id) have NO ownership
-// check - they're only ever called from the staff-side /api/documents/*
-// routes, where "authenticated staff can fetch any document" is correct.
-// It is NOT correct for the portal: an ETUDIANT passing an arbitrary
-// document id must not be able to pull another élève's attestation. This
-// wrapper is what makes that safe - it verifies the document actually
-// belongs to the caller's own eleve record before generating anything.
+// documents.service.js's getById()/generatePdf() now take an optional
+// `user` and centre-check when one is passed (see centreAccess.js) - but
+// that's a centre-level check, staff-shaped (SUPER_ADMIN vs one centre).
+// It's not enough for the portal: an ETUDIANT passing an arbitrary
+// document id from their OWN centre must still not be able to pull
+// another élève's attestation. Deliberately not passing `user` through to
+// documentsService here (student sessions aren't staff and don't carry
+// a centre override the same way) - this wrapper's own ownership check
+// below, against the caller's own eleve record specifically, is strictly
+// tighter than a centre-level check would be anyway.
 async function getMyEleveDocumentPdf(userId, documentId) {
   const eleve = await getMyEleve(userId)
   const doc = await documentsService.getById(documentId)

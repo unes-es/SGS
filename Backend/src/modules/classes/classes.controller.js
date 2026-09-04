@@ -8,7 +8,7 @@ module.exports = {
     return { data: await service.getAll({ centreId, filiereId: req.query.filiereId, typeFormation: req.query.typeFormation }) }
   },
   async getById(req, reply) {
-    return { data: await service.getById(req.params.id) }
+    return { data: await service.getById(req.params.id, req.user) }
   },
   async create(req, reply) {
     const centreId = req.user.role === 'SUPER_ADMIN'
@@ -18,10 +18,10 @@ module.exports = {
     return reply.status(201).send({ data })
   },
   async update(req, reply) {
-    return { data: await service.update(req.params.id, req.body) }
+    return { data: await service.update(req.params.id, req.body, req.user) }
   },
   async remove(req, reply) {
-    await service.remove(req.params.id)
+    await service.remove(req.params.id, req.user)
     return { message: 'Classe supprimée' }
   }
 }

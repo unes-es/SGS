@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll({ eleveId, matiereId, classeId, periode, page = 1, limit = 20 }) {
   const skip = (page - 1) * limit
@@ -33,7 +34,7 @@ async function getAll({ eleveId, matiereId, classeId, periode, page = 1, limit =
   }
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const note = await prisma.note.findUnique({
     where: { id },
     include: {
@@ -42,6 +43,7 @@ async function getById(id) {
     }
   })
   if (!note) throw { statusCode: 404, message: 'Note non trouvée' }
+  assertSameCentre(note.eleve.centreId, user, 'Note non trouvée')
   return note
 }
 
@@ -61,8 +63,8 @@ async function create(data, saisiePar) {
   })
 }
 
-async function update(id, data) {
-  await getById(id)
+async function update(id, data, user) {
+  await getById(id, user)
   return prisma.note.update({
     where: { id },
     data: {
@@ -78,8 +80,8 @@ async function update(id, data) {
   })
 }
 
-async function remove(id) {
-  await getById(id)
+async function remove(id, user) {
+  await getById(id, user)
   return prisma.note.delete({ where: { id } })
 }
 

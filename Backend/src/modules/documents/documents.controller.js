@@ -11,11 +11,11 @@ module.exports = {
   },
 
   async getById(req, reply) {
-    return { data: await service.getById(req.params.id) }
+    return { data: await service.getById(req.params.id, req.user) }
   },
 
   async getByEleve(req, reply) {
-    return { data: await service.getByEleve(req.params.eleveId) }
+    return { data: await service.getByEleve(req.params.eleveId, req.user) }
   },
 
   async create(req, reply) {
@@ -24,7 +24,7 @@ module.exports = {
   },
 
   async remove(req, reply) {
-    await service.remove(req.params.id)
+    await service.remove(req.params.id, req.user)
     return { message: 'Document supprimé' }
   },
   async verify(req, reply) {
@@ -35,7 +35,7 @@ module.exports = {
 
   async generatePdf(req, reply) {
     try {
-      const { pdf, filename } = await service.generatePdf(req.params.id)
+      const { pdf, filename } = await service.generatePdf(req.params.id, req.user)
       reply.header('Content-Type', 'application/pdf')
       reply.header('Content-Disposition', `attachment; filename="${filename}"`)
       return reply.send(pdf)

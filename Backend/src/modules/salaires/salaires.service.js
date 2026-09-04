@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll({ centreId, personnelId, mois, annee, statut }) {
   return prisma.salaire.findMany({
@@ -20,7 +21,7 @@ async function getAll({ centreId, personnelId, mois, annee, statut }) {
   })
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const salaire = await prisma.salaire.findUnique({
     where: { id },
     include: {
@@ -32,6 +33,7 @@ async function getById(id) {
     }
   })
   if (!salaire) throw { statusCode: 404, message: 'Salaire non trouvé' }
+  assertSameCentre(salaire.centreId, user, 'Salaire non trouvé')
   return salaire
 }
 
@@ -65,8 +67,8 @@ async function create(data, centreId) {
   })
 }
 
-async function payer(id, { modePaiement, datePaiement }) {
-  await getById(id)
+async function payer(id, { modePaiement, datePaiement }, user) {
+  await getById(id, user)
   return prisma.salaire.update({
     where: { id },
     data: {

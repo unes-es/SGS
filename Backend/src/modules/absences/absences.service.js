@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll({ centreId, eleveId, classeId, dateDebut, dateFin, page = 1, limit = 20 }) {
   const skip = (page - 1) * limit
@@ -39,7 +40,7 @@ async function getAll({ centreId, eleveId, classeId, dateDebut, dateFin, page = 
   }
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const absence = await prisma.absence.findUnique({
     where: { id },
     include: {
@@ -51,6 +52,9 @@ async function getById(id) {
     }
   })
   if (!absence) throw { statusCode: 404, message: 'Absence non trouvée' }
+  // Absence has no centreId of its own - it's derived from the élève it
+  // belongs to, same as notes.service.js's getById below.
+  assertSameCentre(absence.eleve.centreId, user, 'Absence non trouvée')
   return absence
 }
 
@@ -70,16 +74,16 @@ async function create(data, saisiePar) {
   })
 }
 
-async function justify(id, motif, justificatifUrl) {
-  await getById(id)
+async function justify(id, motif, justificatifUrl, user) {
+  await getById(id, user)
   return prisma.absence.update({
     where: { id },
     data: { estJustifiee: true, motif, justificatifUrl }
   })
 }
 
-async function remove(id) {
-  await getById(id)
+async function remove(id, user) {
+  await getById(id, user)
   return prisma.absence.delete({ where: { id } })
 }
 

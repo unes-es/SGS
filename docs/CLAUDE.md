@@ -87,9 +87,14 @@ See `docs/ARCHITECTURE.md` for the full breakdown.
 
 5. **Multi-centre data isolation matters a lot to the client** — it was raised as
    explicit feedback after the Phase 1 demo (see `docs/ROADMAP.md`). Every
-   centre-scoped model carries a `centreId` and queries must filter by it.
-   ⚠️ Known fragility: some frontend queries rely on the JWT for centre scoping
-   rather than passing `centreId` explicitly — see Known Issues in `BACKLOG.md`.
+   centre-scoped model carries a `centreId` and every `getAll` must filter by
+   it. **Just as important: every single-record `getById`/`update`/`delete`
+   must also verify the record's own centre matches the caller's**, via
+   `assertSameCentre()` in `src/utils/centreAccess.js` (SUPER_ADMIN exempt) —
+   this was missing across almost every module until 04/09 (see Phase 3 in
+   `BACKLOG.md`) and let any authenticated staff member read/modify another
+   campus's data by guessing a UUID. New single-record endpoints must call
+   `assertSameCentre()` from day one, not add it later.
 
 6. **Auth persistence on reload:** `ProtectedRoute` must check both `user` (Zustand,
    persisted) and `accessToken` (not persisted) — not just the token — or page

@@ -1,4 +1,5 @@
 const prisma = require('../../config/db')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 async function getAll({ centreId, filiereId, typeFormation }) {
   return prisma.classe.findMany({
@@ -15,7 +16,7 @@ async function getAll({ centreId, filiereId, typeFormation }) {
   })
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const classe = await prisma.classe.findUnique({
     where: { id },
     include: {
@@ -34,6 +35,7 @@ async function getById(id) {
     }
   })
   if (!classe) throw { statusCode: 404, message: 'Classe non trouvée' }
+  assertSameCentre(classe.centreId, user, 'Classe non trouvée')
   return classe
 }
 
@@ -44,13 +46,13 @@ async function create(data, centreId) {
   })
 }
 
-async function update(id, data) {
-  await getById(id)
+async function update(id, data, user) {
+  await getById(id, user)
   return prisma.classe.update({ where: { id }, data })
 }
 
-async function remove(id) {
-  const classe = await getById(id)
+async function remove(id, user) {
+  const classe = await getById(id, user)
   const hasEleves = await prisma.eleve.count({ where: { classeId: id } })
   if (hasEleves > 0) {
     throw { statusCode: 400, message: 'Impossible de supprimer une classe avec des élèves' }

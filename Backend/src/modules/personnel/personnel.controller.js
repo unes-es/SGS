@@ -15,7 +15,7 @@ async getAll(req, reply) {
 },
 
   async getById(req, reply) {
-    return { data: await service.getById(req.params.id) }
+    return { data: await service.getById(req.params.id, req.user) }
   },
 
   async create(req, reply) {
@@ -27,11 +27,11 @@ async getAll(req, reply) {
   },
 
   async update(req, reply) {
-    return { data: await service.update(req.params.id, req.body) }
+    return { data: await service.update(req.params.id, req.body, req.user) }
   },
 
   async deactivate(req, reply) {
-    await service.deactivate(req.params.id)
+    await service.deactivate(req.params.id, req.user)
     return { message: 'Personnel désactivé' }
   }
 }

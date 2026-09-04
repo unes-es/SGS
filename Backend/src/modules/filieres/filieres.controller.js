@@ -21,10 +21,10 @@ module.exports = {
     return reply.status(201).send({ data })
   },
   async update(req, reply) {
-    return { data: await service.update(req.params.id, req.body) }
+    return { data: await service.update(req.params.id, req.body, req.user) }
   },
   async remove(req, reply) {
-    await service.remove(req.params.id)
+    await service.remove(req.params.id, req.user)
     return { message: 'Filière désactivée' }
   },
   async getElevesParFiliere(req, reply) {
@@ -39,12 +39,12 @@ module.exports = {
   },
 
   async upsertTarif(req, reply) {
-    const data = await service.upsertTarif(req.params.id, req.params.typeFormation, req.body.fraisScolarite)
+    const data = await service.upsertTarif(req.params.id, req.params.typeFormation, req.body.fraisScolarite, req.user)
     return { data }
   },
 
   async removeTarif(req, reply) {
-    await service.removeTarif(req.params.id, req.params.typeFormation)
+    await service.removeTarif(req.params.id, req.params.typeFormation, req.user)
     return { message: 'Tarif réinitialisé' }
   }
 }

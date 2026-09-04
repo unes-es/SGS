@@ -368,6 +368,57 @@ sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
   traité" correctly moves a message between the À traiter/Traités tabs.
   All test data (article, événement, message, notifications, QA account)
   deleted after verification - nothing left behind in the DB.
+
+### Unplanned — Cross-centre isolation on single-record endpoints ✅ (fixed 04/09, deployed + verified)
+Raised by Younes: "for personnel it should be center isolated no?" Checking
+personnel exposed a much bigger issue - the same gap existed almost
+everywhere. Every module's `getAll` already scoped its `where` clause by
+the caller's own `centreId` (per the multi-centre isolation note in
+`CLAUDE.md`), but the single-record `getById`/`update`/`delete`-style
+endpoints never checked that the record actually belonged to the caller's
+centre at all - any authenticated staff member who knew or could guess a
+UUID could read or modify another campus's data. Confirmed live before
+fixing (see verification below), not just a theoretical read of the code.
+- [x] New shared `src/utils/centreAccess.js` (`assertSameCentre`) - throws
+      a 404, not 403, when a record's centre doesn't match the caller's
+      (SUPER_ADMIN exempt). 404 rather than 403 is deliberate: telling a
+      non-SUPER_ADMIN caller "this exists but isn't yours" would itself
+      leak that another centre has a record at that id.
+- [x] Fixed across all 8 affected modules:
+      - **personnel**: `getById`, `update`, `deactivate`
+      - **eleves**: `getById`, `update`, `updateStatut`
+      - **classes**: `getById`, `update`, `remove`
+      - **absences**: `getById`, `justify`, `remove` (centre derived via
+        `eleve.centreId` - Absence has no centreId of its own)
+      - **notes**: `getById`, `update`, `remove` (same, via
+        `eleve.centreId`)
+      - **filieres**: `update`, `remove`, `upsertTarif`, `removeTarif` -
+        `getById` itself stays intentionally unchecked, since
+        `filieres.routes.js`'s `GET /:id` is genuinely public (landing
+        page reads filière info with no auth)
+      - **salaires**: `getById`, `payer`
+      - **documents**: `getById`, `remove`, `getByEleve`, `generatePdf`
+        (centre derived via `eleve.centreId` OR `personnel.centreId` -
+        whichever the document is tied to)
+- [x] `portal.service.js`'s `getMyEleveDocumentPdf` (ETUDIANT self-service
+      document download) left deliberately NOT passing `user` through to
+      `documentsService.getById()`/`generatePdf()` - its own existing
+      per-élève ownership check (`doc.eleveId !== eleve.id`) is strictly
+      tighter than a centre-level check and already covers this path
+      correctly. Updated a stale comment there that claimed these
+      functions had "NO ownership check" - no longer true, just not the
+      relevant check for that caller.
+- Verified end-to-end against the live app (not just the code) with two
+  temporary DIRECTEUR accounts, one per centre, plus a temporary
+  SUPER_ADMIN: a Rabat DIRECTEUR got a real 404 reading AND writing a
+  Casablanca personnel record and a Casablanca élève record (confirmed
+  broken before the fix, fixed after); a Casablanca DIRECTEUR reading the
+  same Casablanca record still got a normal 200; a SUPER_ADMIN based at
+  Rabat could still read the Casablanca record, confirming the exemption
+  still works. All three test accounts deleted after verification.
+- Deployed to production the same session; see `docs/DEPLOYMENT.md`
+  deploy process - no migration needed (the fix is authorization logic
+  only, not a schema change).
 ### Infrastructure & DevOps
 - [x] Domain + SSL (sgs.nextsi.ma) — verified live 01/09, `certbot.timer`
       active, cert valid to 2026-11-24. The "auto-renewal broken"

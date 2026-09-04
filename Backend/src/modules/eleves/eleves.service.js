@@ -1,6 +1,7 @@
 const prisma = require('../../config/db')
 const { sendEmail, wrapEmail } = require('../../utils/mailer')
 const authService = require('../auth/auth.service')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 // auto-generate matricule like MAT-2026-0001
 async function generateMatricule() {
@@ -54,7 +55,7 @@ async function getAll({ centreId, page = 1, limit = 20, search, statut, classeId
   }
 }
 
-async function getById(id) {
+async function getById(id, user) {
   const eleve = await prisma.eleve.findUnique({
     where: { id },
     include: {
@@ -67,6 +68,7 @@ async function getById(id) {
     }
   })
   if (!eleve) throw { statusCode: 404, message: 'Élève non trouvé' }
+  assertSameCentre(eleve.centreId, user, 'Élève non trouvé')
   return eleve
 }
 
@@ -173,8 +175,8 @@ async function create(data, centreId) {
   return result
 }
 
-async function update(id, data) {
-  await getById(id)
+async function update(id, data, user) {
+  await getById(id, user)
   const { prenom, nom, telephone, email, ...eleveData } = data
 
   return prisma.$transaction(async (tx) => {
@@ -202,8 +204,8 @@ async function update(id, data) {
   })
 }
 
-async function updateStatut(id, statut) {
-  await getById(id)
+async function updateStatut(id, statut, user) {
+  await getById(id, user)
   return prisma.eleve.update({ where: { id }, data: { statut } })
 }
 

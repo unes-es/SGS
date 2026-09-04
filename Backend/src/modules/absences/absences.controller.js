@@ -14,7 +14,7 @@ module.exports = {
   },
 
   async getById(req, reply) {
-    return { data: await service.getById(req.params.id) }
+    return { data: await service.getById(req.params.id, req.user) }
   },
 
   async create(req, reply) {
@@ -24,12 +24,12 @@ module.exports = {
 
   async justify(req, reply) {
     const { motif, justificatifUrl } = req.body
-    const data = await service.justify(req.params.id, motif, justificatifUrl)
+    const data = await service.justify(req.params.id, motif, justificatifUrl, req.user)
     return { data }
   },
 
   async remove(req, reply) {
-    await service.remove(req.params.id)
+    await service.remove(req.params.id, req.user)
     return { message: 'Absence supprimée' }
   },
 

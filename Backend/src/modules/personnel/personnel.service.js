@@ -2,6 +2,7 @@ const prisma = require('../../config/db')
 const bcrypt = require('bcrypt')
 const crypto = require('crypto')
 const authService = require('../auth/auth.service')
+const { assertSameCentre } = require('../../utils/centreAccess')
 
 // Login-capable staff roles this form may grant. Deliberately excludes
 // SUPER_ADMIN (granting that stays a separate, deliberate action - not
@@ -45,7 +46,7 @@ async function getAll({ centreId, typeContrat, isActive = true, search, page = 1
     meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
   }
 }
-async function getById(id) {
+async function getById(id, user) {
   const personnel = await prisma.personnel.findUnique({
     where: { id },
     include: {
@@ -59,6 +60,7 @@ async function getById(id) {
     }
   })
   if (!personnel) throw { statusCode: 404, message: 'Personnel non trouvé' }
+  assertSameCentre(personnel.centreId, user, 'Personnel non trouvé')
   return personnel
 }
 
@@ -126,8 +128,8 @@ async function create(data, centreId) {
   return personnel
 }
 
-async function update(id, data) {
-  await getById(id)
+async function update(id, data, user) {
+  await getById(id, user)
   const { prenom, nom, telephone, email, role, ...personnelData } = data
 
   return prisma.$transaction(async (tx) => {
@@ -177,8 +179,8 @@ async function update(id, data) {
   })
 }
 
-async function deactivate(id) {
-  await getById(id)
+async function deactivate(id, user) {
+  await getById(id, user)
   return prisma.$transaction(async (tx) => {
     const p = await tx.personnel.findUnique({ where: { id } })
     await tx.utilisateur.update({ where: { id: p.utilisateurId }, data: { isActive: false } })
