@@ -61,6 +61,16 @@ async function getMeHandler(req, reply) {
   return { user }
 }
 
+async function updateMeHandler(req, reply) {
+  const user = await authService.updateMe(req.user.id, req.body)
+  return { user }
+}
+
+async function changePasswordHandler(req, reply) {
+  await authService.changePassword(req.user.id, req.body.currentPassword, req.body.newPassword)
+  return { message: 'Mot de passe mis à jour' }
+}
+
 async function forgotPasswordHandler(req, reply) {
   await authService.requestPasswordReset(req.body.email)
   // Always the same response regardless of whether the email exists -
@@ -79,6 +89,8 @@ module.exports = {
   refreshHandler,
   logoutHandler,
   getMeHandler,
+  updateMeHandler,
+  changePasswordHandler,
   forgotPasswordHandler,
   resetPasswordHandler
 }

@@ -472,6 +472,27 @@ deactivated one, from the UI at all.
       staff, nothing showed CANDIDAT/ETUDIANT accounts at all). Still the
       same fixed 8-role model underneath, not per-permission access
       control — see "Something more granular" if that's ever needed.
+- [x] **Self-service "Mon compte" (edit info / change password)** — done
+      04/09 (unplanned, raised by Younes: "is there a way for a user to
+      change his password or informations?" - answer was no, anywhere).
+      Only prior path to change a password was the logged-out
+      forgot-password email link; no account (staff or CANDIDAT/ETUDIANT)
+      could edit its own prénom/nom/téléphone/email at all.
+      New `PATCH /auth/me` and `POST /auth/me/password` (any authenticated
+      role, no `authorize()` role gate - this only ever touches the
+      caller's own account). Password change re-verifies the current
+      password server-side (`bcrypt.compare`) rather than trusting a
+      valid access token alone - a stolen-but-still-valid token shouldn't
+      be enough to lock the real owner out. New shared
+      `components/MonCompteModal.jsx`, wired into both the admin Sidebar
+      (click the user block at the bottom) and the candidat/étudiant
+      portal header ("Mon compte" link) - one component, one set of
+      endpoints, both surfaces. Verified end-to-end: changed a real test
+      account's password through the actual UI, confirmed login with the
+      old password then fails and the new one works; separately confirmed
+      via curl that a CANDIDAT-role account can use both endpoints too
+      (the portal path shares this component/API, wasn't re-verified
+      through its own UI click-through). Test accounts deleted after.
 - [ ] 2FA for admin accounts
 - [ ] Audit log (who did what and when)
 - [ ] GDPR-compliant data export/deletion

@@ -76,6 +76,59 @@ async function getMe(userId) {
   return user
 }
 
+// Self-service profile edit - every role (including CANDIDAT/ETUDIANT via
+// the portal) can update their own prenom/nom/telephone/email. No role
+// field here on purpose: unlike personnel.service.js's update() (an admin
+// editing someone else's account), nothing here can change who this
+// account is allowed to log in as - that stays an admin-only action.
+async function updateMe(userId, { prenom, nom, telephone, email }) {
+  if (email) {
+    const exists = await prisma.utilisateur.findUnique({ where: { email } })
+    if (exists && exists.id !== userId) {
+      throw { statusCode: 409, message: 'Email déjà utilisé' }
+    }
+  }
+
+  const user = await prisma.utilisateur.update({
+    where: { id: userId },
+    data: {
+      ...(prenom !== undefined && { prenom }),
+      ...(nom !== undefined && { nom }),
+      ...(telephone !== undefined && { telephone }),
+      ...(email !== undefined && { email })
+    },
+    select: {
+      id: true, email: true, role: true,
+      centreId: true, prenom: true, nom: true,
+      telephone: true, photoUrl: true
+    }
+  })
+  return user
+}
+
+// Distinct from resetPassword() (token-based, logged-out flow) - this is
+// the in-session "I know my current password and want to change it" path,
+// so it re-verifies the current password server-side rather than trusting
+// the fact that the request carries a valid access token. A stolen-but-
+// still-valid access token (e.g. from a shared/forgotten-logged-in
+// browser) shouldn't be enough on its own to lock the real owner out.
+async function changePassword(userId, currentPassword, newPassword) {
+  const user = await prisma.utilisateur.findUnique({
+    where: { id: userId },
+    select: { id: true, passwordHash: true }
+  })
+  if (!user) throw { statusCode: 404, message: 'Utilisateur non trouvé' }
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+  if (!valid) throw { statusCode: 401, message: 'Mot de passe actuel incorrect' }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12)
+  await prisma.utilisateur.update({
+    where: { id: userId },
+    data: { passwordHash }
+  })
+}
+
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
@@ -152,7 +205,7 @@ async function resetPassword(token, newPassword) {
 }
 
 module.exports = {
-  login, register, getMe,
+  login, register, getMe, updateMe, changePassword,
   issueResetToken, sendResetEmail,
   requestPasswordReset, resetPassword
 }

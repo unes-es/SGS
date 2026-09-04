@@ -9,6 +9,11 @@ export const useAuthStore = create(
 
       setAuth: (accessToken, user) => set({ accessToken, user }),
       setAccessToken: (accessToken) => set({ accessToken }),
+      // Merges into the persisted user object after a self-service
+      // profile edit (Topbar's "Mon compte" modal), so the Sidebar's
+      // name/initials and everything else reading from the store reflect
+      // the change immediately without a full re-login.
+      updateUser: (partial) => set((state) => ({ user: { ...state.user, ...partial } })),
       logout: () => set({ accessToken: null, user: null })
     }),
     {

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { portalApi } from '../../api/portal'
 import { authApi } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
+import MonCompteModal from '../../components/MonCompteModal'
 
 const STATUT_LABELS = {
   EN_ATTENTE: 'En attente',
@@ -34,6 +35,7 @@ export default function PortailPage() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const isEtudiant = user?.role === 'ETUDIANT'
+  const [showMonCompte, setShowMonCompte] = useState(false)
 
   const { data: candRes, isLoading: candLoading } = useQuery({
     queryKey: ['portal-candidature'],
@@ -64,10 +66,17 @@ export default function PortailPage() {
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-sm">🎓</div>
           <span className="font-bold text-gray-900 text-sm">SGS — Mon espace</span>
         </div>
-        <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-500 transition">
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowMonCompte(true)} className="text-xs text-gray-500 hover:text-blue-600 transition">
+            Mon compte
+          </button>
+          <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-500 transition">
+            Déconnexion
+          </button>
+        </div>
       </header>
+
+      {showMonCompte && <MonCompteModal onClose={() => setShowMonCompte(false)} />}
 
       <main className="max-w-lg mx-auto p-4 pt-8 pb-16">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Bonjour {user?.prenom} 👋</h1>

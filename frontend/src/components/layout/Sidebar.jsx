@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useCentreStore } from '../../store/centreStore'
@@ -7,11 +8,13 @@ import { candidaturesApi } from '../../api/candidatures'
 import { notificationsApi } from '../../api/notifications'
 import { centresApi } from '../../api/centres'
 import { contactApi } from '../../api/contact'
+import MonCompteModal from '../MonCompteModal'
 
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore()
   const { selectedCentreId } = useCentreStore()
   const navigate = useNavigate()
+  const [showMonCompte, setShowMonCompte] = useState(false)
 
   const handleLogout = async () => {
     // Best-effort - the user is logged out client-side regardless of
@@ -184,9 +187,13 @@ export default function Sidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        {/* User */}
+        {/* User - clicking the info block opens the self-service "Mon
+            compte" modal (edit info / change password), separate from
+            the logout button beside it. */}
         <div className="p-3 border-t border-gray-800">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-900 transition cursor-pointer">
+          <div
+            onClick={() => setShowMonCompte(true)}
+            className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-900 transition cursor-pointer">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
               {user?.prenom?.[0]}{user?.nom?.[0]}
             </div>
@@ -197,7 +204,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <div className="text-gray-500 text-xs truncate">{user?.role}</div>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={(e) => { e.stopPropagation(); handleLogout() }}
               className="text-gray-600 hover:text-red-400 text-sm transition"
               title="Déconnexion">
               ⏻
@@ -205,6 +212,8 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
       </aside>
+
+      {showMonCompte && <MonCompteModal onClose={() => setShowMonCompte(false)} />}
     </>
   )
 }
