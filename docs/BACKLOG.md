@@ -463,6 +463,13 @@ deactivated one, from the UI at all.
 - [ ] CI/CD GitHub Actions (auto-deploy on push) — currently `deploy.sh`,
       run manually
 - [ ] Staging environment
+- [ ] `deploy.sh` tears the stack down (`docker compose down`) *before*
+      confirming the rebuild succeeds - a failed `--build` (hit for real
+      04/09, a corrupted Docker builder cache, unrelated to the code)
+      leaves the site fully down with no auto-rollback. Should build
+      first, confirm success, then swap in. See `docs/DEPLOYMENT.md`'s
+      new section for the incident + manual recovery steps used this
+      time.
 ### Security & Compliance
 - [x] **User management page** — done 01/09 (unplanned, wasn't on this
       list). New "Utilisateurs" admin page (`/admin/utilisateurs`,

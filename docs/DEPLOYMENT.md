@@ -191,6 +191,54 @@ Run future deploys with:
 /opt/sgs/deploy.sh
 ```
 
+### ⚠️ `deploy.sh` brings the site down *before* it knows the rebuild will
+### succeed
+
+`docker compose down` runs unconditionally, before `up -d --build`. If the
+build then fails, the site is left fully down (all three containers
+stopped) with nothing to automatically roll back to - `deploy.sh` has
+`set -e`, so it just exits, still down.
+
+**Hit for real on 2026-09-04:** a `--build` run failed with `failed to
+prepare extraction snapshot ... parent snapshot ... does not exist: not
+found` - a corrupted local Docker builder cache on the VPS, unrelated to
+the actual code being deployed. Recovery:
+
+```bash
+# 1. Check whether the image actually finished tagging despite the error -
+#    "naming to ...:latest done" can appear before a later export step
+#    fails, in which case the image is often still usable:
+docker images | grep sgs-backend
+
+# 2. If it's there, bring the stack back up on whatever image exists
+#    (skips --build, so it can't hit the same error):
+cd /opt/apps/sgs && docker compose --env-file .env up -d
+
+# 3. Verify the site is actually back, AND that the image that came up is
+#    the new code, not a stale previous build - `docker images` alone
+#    doesn't tell you that:
+curl -s -o /dev/null -w "%{http_code}\n" https://sgs.nextsi.ma/
+docker exec sgs-backend grep -c '<something from the change just deployed>' /app/src/path/to/file.js
+
+# 4. Once the site is confirmed back up, clean the corrupted build cache
+#    so the next real --build doesn't hit the same snapshot error:
+docker builder prune -f
+
+# 5. Do a clean rebuild to confirm the corruption is actually gone before
+#    trusting deploy.sh again:
+cd /opt/apps/sgs && docker compose --env-file .env build backend
+```
+
+No data was lost and the site was down only for the duration between the
+failed `down`+`build` and the manual `up -d` above (a few minutes, caught
+immediately because the deploy was being actively verified) - but this
+class of failure is a real gap in `deploy.sh` worth fixing properly: build
+the new image first, confirm it built, *then* swap it in, rather than
+tearing down first and hoping the rebuild works. Not fixed yet - flagging
+here so the next person (or session) hitting a failed deploy checks
+`docker ps` immediately rather than assuming `set -e` exiting cleanly
+means nothing bad happened.
+
 ### ⚠️ Migration ordering — unresolved ambiguity, verify before touching
 
 Two different patterns were discussed across sessions and it's not fully certain
