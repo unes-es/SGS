@@ -61,6 +61,24 @@ async function register({ email, password, role, prenom, nom, centreId, telephon
   return user
 }
 
+// Used by refreshHandler (auth.controller.js) to mint a new access token
+// with the same {id, role, centreId} shape loginHandler uses - the
+// refresh token itself only carries {id} on purpose (role/centreId can
+// go stale over its 7-day life), so this re-reads the current values
+// fresh from the DB on every refresh rather than trusting anything
+// older. Also means a role change (e.g. promoted, or deactivated) takes
+// effect on the next silent refresh, not just at next login.
+async function getActiveUserForRefresh(userId) {
+  const user = await prisma.utilisateur.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, centreId: true, isActive: true }
+  })
+  if (!user || !user.isActive) {
+    throw { statusCode: 401, message: 'Compte introuvable ou désactivé' }
+  }
+  return user
+}
+
 async function getMe(userId) {
   const user = await prisma.utilisateur.findUnique({
     where: { id: userId },
@@ -212,5 +230,6 @@ async function resetPassword(token, newPassword) {
 module.exports = {
   login, register, getMe, updateMe, changePassword,
   issueResetToken, sendResetEmail,
-  requestPasswordReset, resetPassword
+  requestPasswordReset, resetPassword,
+  getActiveUserForRefresh
 }

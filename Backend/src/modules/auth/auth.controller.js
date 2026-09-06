@@ -40,14 +40,25 @@ async function refreshHandler(req, reply) {
   try {
     const decoded = await req.jwtVerify({ onlyCookie: true })
 
+    // Was `{ id: decoded.id }` only - the refreshed access token carried
+    // no role/centreId at all, unlike loginHandler's. authenticate.js
+    // happens to re-fetch the full user from the DB on every request
+    // regardless (so this wasn't breaking anything live today), but any
+    // future code that trusts the token payload's role/centreId directly
+    // would have silently misbehaved for the rest of a refreshed
+    // session. Re-reading fresh from the DB here also means a role
+    // change or deactivation takes effect on the next silent refresh,
+    // not just at next login.
+    const user = await authService.getActiveUserForRefresh(decoded.id)
+
     const accessToken = await reply.jwtSign(
-      { id: decoded.id },
+      { id: user.id, role: user.role, centreId: user.centreId },
       { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
     )
 
     return { accessToken }
-  } catch {
-    return reply.status(401).send({ message: 'Invalid refresh token' })
+  } catch (err) {
+    return reply.status(err.statusCode || 401).send({ message: err.message || 'Invalid refresh token' })
   }
 }
 

@@ -702,23 +702,19 @@ deactivated one, from the UI at all.
 
 ## 🐛 Known Issues / Tech Debt
 
-- [ ] **Found 06/09 while testing, not fixed - inconsistency (likely
-      harmless in practice, but not verified end-to-end) in
-      `auth.controller.js`'s `refreshHandler`**: mints the new access
-      token with payload `{ id: decoded.id }` only - missing `role` and
-      `centreId`, unlike `loginHandler` which includes all three. Checked
-      `authenticate.js`: it always re-fetches the full user from the DB
-      by `req.user.id` after `jwtVerify()` and *overwrites* `req.user`
-      with that fresh `{id, role, centreId, ...}` before `authorize()` or
-      any controller ever reads it - so a refreshed token's missing
-      claims likely don't matter today, since nothing appears to trust
-      the raw JWT payload's `role`/`centreId` directly. Still worth
-      fixing for consistency (two code paths minting the "same kind" of
-      token with different payload shapes is a footgun for whoever adds
-      a new check later that *does* read the token payload directly) and
-      worth an actual test against a real expired-then-refreshed session
-      to confirm there's no path that skips the DB re-fetch - not
-      reproduced end-to-end, just read through.
+- [x] ~~Found 06/09 while testing - `auth.controller.js`'s
+      `refreshHandler` minted the new access token with payload `{ id:
+      decoded.id }` only, missing `role`/`centreId` that `loginHandler`
+      includes~~ — **fixed 06/09**. New `authService.getActiveUserForRefresh()`
+      re-reads the current user fresh from the DB on every refresh (not
+      just once at login) and mints the new access token with the full
+      `{id, role, centreId}` shape - also rejects with 401 if the account
+      was deactivated or deleted since the refresh token was issued,
+      which the old code never checked at all. Verified live: crafted a
+      real refresh-token cookie and confirmed the new access token's
+      decoded payload now carries `role`/`centreId`; crafted one for a
+      nonexistent user id and confirmed a clean 401 instead of silently
+      minting a token for a ghost account.
 - [x] ~~`/api/matieres` inline route in app.js~~ — **fixed 01/09**,
       extracted into its own module (matieres.routes/controller/service).
 - [x] ~~Frontend bundle size warning (908KB)~~ — **fixed 01/09**, all
