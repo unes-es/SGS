@@ -116,6 +116,10 @@ enum TypeNotification {
   PAIEMENT
   SYSTEME
   CONTACT
+  // Added for the Classe capacity-alert cron (checkCapacite() in
+  // notifications.service.js) - a classe crossing 80%/100% of
+  // capaciteMax, mirroring how IMPAYES already works.
+  CAPACITE
 }
 
 enum TypeCandidatureDocument {
@@ -132,6 +136,18 @@ enum TypeCandidatureDocument {
 enum TypeEvenementCandidature {
   MESSAGE
   STATUT_CHANGE
+}
+
+// Parent portal (feature addition) - what kind of calendar entry this is.
+// FERIE/VACANCES don't cancel classes automatically anywhere yet (no
+// EmploiDuTemps/Absence behavior change wired to this model on purpose,
+// to keep this addition's scope to "define and display the calendar" -
+// see EvenementCalendrier's own comment) - they're informational for now.
+enum TypeEvenementCalendrier {
+  FERIE
+  VACANCES
+  EXAMEN
+  AUTRE
 }
 
 // Phase 2.3 - what format a Classe actually runs in. Defaults to JOUR
@@ -168,6 +184,33 @@ model FormationTarif {
   @@map("formation_tarifs")
 }
 
+// Academic calendar (feature addition) - holidays, vacation ranges, exam
+// periods. centreId nullable = applies to both campuses, same convention
+// as Actualite/Evenement above (a single shared school year calendar is
+// the common case; set centreId when something is genuinely
+// campus-specific, e.g. one campus closing for a local event).
+// Deliberately not wired into Absence validation or EmploiDuTemps
+// generation - this release just defines and displays the calendar, it
+// doesn't change existing behavior (e.g. still lets staff mark an
+// absence on a FERIE date without any special-casing). That coupling is
+// a natural next step, not scoped in here.
+model EvenementCalendrier {
+  id          String                    @id @default(uuid())
+  centreId    String?
+  type        TypeEvenementCalendrier
+  titre       String
+  dateDebut   DateTime                  @db.Date
+  dateFin     DateTime                  @db.Date
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  centre      Centre?                   @relation(fields: [centreId], references: [id])
+
+  @@index([centreId])
+  @@index([dateDebut, dateFin])
+  @@map("evenements_calendrier")
+}
+
 // ─── MODELS ──────────────────────────────────────
 
 model Centre {
@@ -194,6 +237,7 @@ model Centre {
   notifications   Notification[]
   actualites      Actualite[]
   evenements      Evenement[]
+  evenementsCalendrier EvenementCalendrier[]
 
   @@map("centres")
 }
@@ -236,6 +280,14 @@ model Utilisateur {
   candidaturesSoumises Candidature[] @relation("CandidatUser")
   actualitesEcrites    Actualite[]
   messagesTraites      MessageContact[]
+  // Parent portal (feature addition) - the élève(s) this account (role
+  // PARENT) can view. One column, not a join table: the common case is
+  // one parent account seeing all of their own children, and a nullable
+  // FK on Eleve supports that directly. Doesn't support a second parent
+  // account on the same child (e.g. both mother and father each with
+  // their own login) - a join table would be the fix if that's ever
+  // needed, not scoped in here.
+  enfants              Eleve[]          @relation("EleveParent")
 
   @@index([centreId])
   @@map("utilisateurs")
@@ -342,11 +394,17 @@ model Eleve {
   statut         StatutEleve @default(ACTIF)
   dateInscription DateTime   @db.Date
   photoUrl       String?
+  // Parent portal (feature addition) - null until an admin links a
+  // PARENT account (Eleves.jsx "Lier un parent" action / eleves.service.js
+  // linkParent()). Nullable so every élève created before this feature
+  // stays valid with no data migration beyond the column add itself.
+  parentUserId   String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   utilisateur    Utilisateur @relation(fields: [utilisateurId], references: [id])
   classe         Classe      @relation(fields: [classeId], references: [id])
+  parent         Utilisateur? @relation("EleveParent", fields: [parentUserId], references: [id])
   absences       Absence[]
   notes          Note[]
   paiements      PaiementEleve[]
@@ -354,6 +412,7 @@ model Eleve {
 
   @@index([classeId])
   @@index([centreId])
+  @@index([parentUserId])
   @@map("eleves")
 }
 

@@ -19,6 +19,20 @@ async function elevesRoutes(fastify) {
   fastify.patch('/:id/statut', {
     preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR')
   }, ctrl.updateStatut)
+
+  // Bulk import (feature addition) - same roles as create(), since this
+  // is create() run many times over.
+  fastify.post('/import', {
+    preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+  }, ctrl.import)
+
+  // Parent portal (feature addition)
+  fastify.post('/:id/parent', {
+    preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+  }, ctrl.linkParent)
+  fastify.delete('/:id/parent', {
+    preHandler: authorize('SUPER_ADMIN', 'DIRECTEUR', 'SECRETAIRE')
+  }, ctrl.unlinkParent)
 }
 
 module.exports = elevesRoutes

@@ -151,13 +151,18 @@ async function issueResetToken(userId, { purpose = 'reset' } = {}) {
 
 async function sendResetEmail(user, rawToken, { purpose = 'reset' } = {}) {
   const link = `${FRONTEND_URL}/reset-password/${rawToken}`
-  const isFirstSet = purpose === 'welcome' || purpose === 'welcome-eleve' || purpose === 'welcome-staff'
+  const isFirstSet = purpose === 'welcome' || purpose === 'welcome-eleve' || purpose === 'welcome-staff' || purpose === 'welcome-parent'
   const title = isFirstSet ? 'Bienvenue sur SGS' : 'Réinitialisation de mot de passe'
   const intro = purpose === 'welcome-eleve'
     // Directly-enrolled élève with no prior CANDIDAT account behind it
     // (see eleves.service.js's create()) - the candidature-specific copy
     // below would be misleading here, there was no candidature.
     ? `Bonjour ${user.prenom}, votre inscription à SGS est confirmée. Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace élève.`
+    : purpose === 'welcome-parent'
+    // Parent portal (feature addition) - account created via Eleves.jsx
+    // "Lier un parent" (eleves.service.js linkParent()), not tied to any
+    // prior candidature/enrollment flow of their own.
+    ? `Bonjour ${user.prenom}, un compte parent SGS a été créé pour vous permettre de suivre la scolarité de votre enfant. Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace.`
     : purpose === 'welcome-staff'
     // New hire (personnel.service.js) with no explicit password set by
     // the admin who created their account.

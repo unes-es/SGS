@@ -4,7 +4,7 @@ const authorize = require('../../middlewares/authorize')
 
 async function portalRoutes(fastify) {
   fastify.addHook('preHandler', authenticate)
-  fastify.addHook('preHandler', authorize('CANDIDAT', 'ETUDIANT'))
+  fastify.addHook('preHandler', authorize('CANDIDAT', 'ETUDIANT', 'PARENT'))
 
   fastify.get('/candidature', ctrl.getMyCandidature)
   fastify.get('/eleve', ctrl.getMyEleve)
@@ -31,6 +31,18 @@ async function portalRoutes(fastify) {
   // document). getMyEleveDocumentPdf() in portal.service.js verifies the
   // document actually belongs to the caller's own eleve first.
   fastify.get('/eleve/documents/:id/pdf', ctrl.getMyEleveDocumentPdf)
+
+  // Parent Portal (feature addition) - eleveId in the path, not resolved
+  // implicitly, since a PARENT can have more than one child. Each
+  // handler's service function verifies ownership before returning
+  // anything - see assertOwnChild() in portal.service.js.
+  fastify.get('/enfants', ctrl.getMyChildren)
+  fastify.get('/enfants/:eleveId/notes',     ctrl.getChildNotes)
+  fastify.get('/enfants/:eleveId/absences',  ctrl.getChildAbsences)
+  fastify.get('/enfants/:eleveId/emploi',    ctrl.getChildEmploiDuTemps)
+  fastify.get('/enfants/:eleveId/paiements', ctrl.getChildPaiements)
+  fastify.get('/enfants/:eleveId/documents', ctrl.getChildDocuments)
+  fastify.get('/enfants/:eleveId/documents/:docId/pdf', ctrl.getChildDocumentPdf)
 }
 
 module.exports = portalRoutes

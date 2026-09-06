@@ -64,5 +64,41 @@ module.exports = {
     } catch (err) {
       return reply.status(err.statusCode || 500).send({ message: err.message || 'Erreur PDF' })
     }
+  },
+
+  // Parent Portal (feature addition)
+  async getMyChildren(req, reply) {
+    return { data: await service.getMyChildren(req.user.id) }
+  },
+
+  async getChildNotes(req, reply) {
+    return { data: await service.getChildNotes(req.user.id, req.params.eleveId) }
+  },
+
+  async getChildAbsences(req, reply) {
+    return { data: await service.getChildAbsences(req.user.id, req.params.eleveId) }
+  },
+
+  async getChildEmploiDuTemps(req, reply) {
+    return { data: await service.getChildEmploiDuTemps(req.user.id, req.params.eleveId) }
+  },
+
+  async getChildPaiements(req, reply) {
+    return { data: await service.getChildPaiements(req.user.id, req.params.eleveId) }
+  },
+
+  async getChildDocuments(req, reply) {
+    return { data: await service.getChildDocuments(req.user.id, req.params.eleveId) }
+  },
+
+  async getChildDocumentPdf(req, reply) {
+    try {
+      const { pdf, filename } = await service.getChildDocumentPdf(req.user.id, req.params.eleveId, req.params.docId)
+      reply.header('Content-Type', 'application/pdf')
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+      return reply.send(pdf)
+    } catch (err) {
+      return reply.status(err.statusCode || 500).send({ message: err.message || 'Erreur PDF' })
+    }
   }
 }

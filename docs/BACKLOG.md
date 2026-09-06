@@ -315,6 +315,144 @@ until a real sending domain is verified.
 sprints done and deployed to sgs.nextsi.ma**, same day as Phase 2.2.
 ---
 
+## ✨ FEATURE ADDITIONS (06/09) — Capacité, import, parent, calendrier
+
+Four features picked from the product-ideas backlog below, done together
+in one pass. Verified live against a local dev DB (backend + frontend
+both running locally, not sgs.nextsi.ma) via direct service calls, real
+HTTP requests (including multipart file upload), and a real browser
+session for every UI piece — not deployed to production as part of this
+pass; see "Not yet deployed" note at the end of this section.
+
+### Classe capacity alerts ✅
+- [x] `checkCapacite()` in `notifications.service.js`, mirrors
+      `checkImpayés()` exactly: runs on the same 8am cron (`app.js`),
+      groups classes ≥80% of `capaciteMax` by centre, one broadcast
+      `CAPACITE` notification per centre per day (same "already sent
+      today" dedup as impayés). New `TypeNotification.CAPACITE` enum
+      value + icon/color in `Topbar.jsx`/`Notifications.jsx`.
+- [x] The visual capacity bar in `Classes.jsx` (color-coded green/amber/
+      red) already existed before this pass — this only added the
+      *proactive* notification, not a new visual, closing the actual gap
+      ("notify admin," not "let admin notice if they look").
+- [x] Verified live: forced a real class to 100% (temporarily lowered its
+      `capaciteMax`, ran the cron function, confirmed the exact
+      notification text and dedup, restored the class, cleaned up the
+      test notification).
+
+### Bulk import (Excel) ✅ — Élèves only, Personnel not included
+- [x] `POST /eleves/import` (multipart .xlsx) — `eleves.controller.js`
+      parses the sheet with `exceljs`, `eleves.service.js`'s
+      `importFromRows()` reuses `create()` row-by-row (one code path for
+      "how an élève gets created," whether that's the admin form or a
+      spreadsheet). Runs sequentially, not `Promise.all` — matricule
+      generation reads-then-increments and would race under concurrency,
+      and 100+ simultaneous welcome emails isn't something to fire at the
+      mailer at once.
+- [x] **Chose `exceljs` over `xlsx` (SheetJS) deliberately**: `npm install
+      xlsx` reported a new critical vulnerability (unpatched prototype-
+      pollution/ReDoS advisories SheetJS never fixed in the npm-published
+      package) on exactly the attack surface this feature touches -
+      parsing untrusted uploaded files. `exceljs` only added one
+      moderate, low-relevance advisory (old transitive `uuid`, used
+      internally for ids, not security-sensitive here).
+- [x] Case/accent-insensitive column matching (`Prenom`/`prénom`/`PRENOM`
+      all match); required columns: Prenom, Nom, Email, DateNaissance,
+      Classe (matched by exact name, scoped to the caller's centre - never
+      trusts a row to name another centre's class). Optional: Telephone,
+      CIN, Adresse, NomParent, TelParent. Per-row failures (bad classe
+      name, invalid date, missing required column) don't block the rest
+      of the batch - full report shown in the admin modal (`Eleves.jsx`'s
+      new "📥 Importer" button).
+- [x] Verified live: generated a real .xlsx with `exceljs`, uploaded it
+      through the actual HTTP endpoint (not just the service function) -
+      valid rows imported with sequential matricules, a bad classe name
+      failed independently without blocking the valid rows, a fully-blank
+      trailing row was correctly skipped rather than reported as a
+      failure. Confirmed in the browser too (modal shows the documented
+      column list and a working file picker).
+- [ ] Personnel import not built - same `importFromRows` pattern would
+      apply, not scoped into this pass. Natural follow-up if needed.
+
+### Parent portal ✅
+- [x] New `Eleve.parentUserId` (nullable FK to `Utilisateur`) - one
+      column, not a join table, since the common case (one parent account
+      seeing all their children) is directly supported by a nullable FK
+      on the child side. Doesn't support two separate parent logins for
+      the same child (e.g. mother + father each with their own account) -
+      would need a join table if that's ever needed.
+- [x] `Eleves.jsx` detail panel: "Lier un compte parent" - links an
+      existing PARENT account by email, or creates a new one (random
+      password, "set your password" welcome email, same mechanism as the
+      élève welcome flow) if none exists. Rejects an email already used by
+      a non-PARENT account rather than silently repurposing it. Also
+      "Délier ce compte parent."
+- [x] `portal.service.js` gained a full parent-facing surface
+      (`getMyChildren`, `getChildNotes/Absences/EmploiDuTemps/Paiements/
+      Documents(+Pdf)`), all eleveId-scoped rather than resolving a single
+      implicit record like the ETUDIANT side does — a parent can have more
+      than one child. Every function verifies the requested eleveId is
+      actually one of the caller's own children first (`assertOwnChild`,
+      404 not 403 on a mismatch) before touching any data - same
+      "provably can't touch someone else's record" posture as the rest of
+      the portal module.
+      `PARENT` added to the portal's `authorize()` allow-list and to
+      `App.jsx`'s `PortalRoute` - reuses the exact same `/candidat/login`
+      page and `/auth/login` endpoint as CANDIDAT/ETUDIANT, no new login
+      flow needed.
+- [x] `PortailPage.jsx`: a PARENT sees a child-selector (only shown when
+      there's more than one child) and the same notes/absences/emploi/
+      paiements/documents tab layout as the student portal, just wired to
+      the eleveId-scoped endpoints.
+- [x] Verified live end-to-end: linked a real parent account to a real
+      élève through the actual admin UI, confirmed the eleve's `parent`
+      field populates immediately; hit the parent's own `/portal/enfants`
+      and `/portal/enfants/:id/notes` endpoints with a real token for that
+      account and confirmed correct data; confirmed a parent hitting a
+      *different* élève's id gets a 404, not someone else's data.
+- [ ] `/admin/portail` sidebar entry ("👨‍👩‍👧 Portail Parents") still shows
+      the pre-existing "Bientôt disponible" placeholder - this pass built
+      the actual external parent-facing portal and the per-élève linking
+      action, not an admin-side overview page listing all parent accounts
+      and who they're linked to. The generic `/admin/utilisateurs` page
+      already lets an admin filter by `role=PARENT`, just without showing
+      linked children - a dedicated overview page is a natural (small)
+      follow-up, not done here.
+
+### Academic calendar ✅
+- [x] New `EvenementCalendrier` model (`type`: FERIE/VACANCES/EXAMEN/
+      AUTRE, `titre`, `dateDebut`, `dateFin`, nullable `centreId` for
+      "both campuses" - same convention as `Actualite`/`Evenement`). New
+      `calendrier` module (service/controller/routes), registered at
+      `/api/calendrier`. Read open to any authenticated staff member,
+      write restricted to SUPER_ADMIN/DIRECTEUR - same shape as
+      `centres.routes.js`.
+- [x] New `Calendrier.jsx` admin page (sidebar: "🎉 Calendrier
+      académique," under Pédagogie): inline create form + an
+      upcoming/past split list, delete per entry. **Deliberately a flat
+      list, not a calendar-grid widget** - the value here is "define and
+      see what's coming up," a real month-view calendar UI would be a
+      much bigger separate piece of work.
+- [x] **Deliberately not wired into Absence validation or emploi du temps
+      generation** - marking an absence on a FERIE date, or generating a
+      créneau during VACANCES, behaves exactly as before this pass. This
+      release defines and displays the calendar; making the rest of the
+      app calendar-aware is real follow-up work, not silently bundled in
+      here as a behavior change nobody asked for yet.
+- [x] Verified live: full CRUD cycle (create/list/update/delete) through
+      real HTTP requests, then the actual create form and rendered
+      upcoming/past list through the browser UI, with the entry showing
+      the correct type badge, date range, and centre label.
+
+**Not yet deployed to sgs.nextsi.ma.** Everything above was built and
+verified against local dev only (own local Postgres, local backend/
+frontend). Deploying requires the standard `deploy.sh` flow plus running
+the new Prisma migration in production
+(`20260906145554_feature_additions_capacite_calendrier_parent`) - not run
+against the production DB as part of this pass.
+
+---
+
 ## 🔮 PHASE 3 — Advanced (In progress)
 
 ### Site Vitrine ✅ (done 04/09, deployed + verified end-to-end)
@@ -564,6 +702,23 @@ deactivated one, from the UI at all.
 
 ## 🐛 Known Issues / Tech Debt
 
+- [ ] **Found 06/09 while testing, not fixed - inconsistency (likely
+      harmless in practice, but not verified end-to-end) in
+      `auth.controller.js`'s `refreshHandler`**: mints the new access
+      token with payload `{ id: decoded.id }` only - missing `role` and
+      `centreId`, unlike `loginHandler` which includes all three. Checked
+      `authenticate.js`: it always re-fetches the full user from the DB
+      by `req.user.id` after `jwtVerify()` and *overwrites* `req.user`
+      with that fresh `{id, role, centreId, ...}` before `authorize()` or
+      any controller ever reads it - so a refreshed token's missing
+      claims likely don't matter today, since nothing appears to trust
+      the raw JWT payload's `role`/`centreId` directly. Still worth
+      fixing for consistency (two code paths minting the "same kind" of
+      token with different payload shapes is a footgun for whoever adds
+      a new check later that *does* read the token payload directly) and
+      worth an actual test against a real expired-then-refreshed session
+      to confirm there's no path that skips the DB re-fetch - not
+      reproduced end-to-end, just read through.
 - [x] ~~`/api/matieres` inline route in app.js~~ — **fixed 01/09**,
       extracted into its own module (matieres.routes/controller/service).
 - [x] ~~Frontend bundle size warning (908KB)~~ — **fixed 01/09**, all

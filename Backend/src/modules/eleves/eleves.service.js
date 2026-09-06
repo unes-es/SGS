@@ -64,6 +64,11 @@ async function getById(id, user) {
       },
       classe: {
         include: { filiere: true }
+      },
+      // Parent portal (feature addition) - so Eleves.jsx can show
+      // whether a parent account is already linked, and to whom.
+      parent: {
+        select: { id: true, email: true, prenom: true, nom: true }
       }
     }
   })
@@ -209,4 +214,143 @@ async function updateStatut(id, statut, user) {
   return prisma.eleve.update({ where: { id }, data: { statut } })
 }
 
-module.exports = { getAll, getById, create, update, updateStatut }
+// ── Bulk import (feature addition) ──────────────────────────────────
+//
+// Deliberately reuses create() row-by-row rather than reimplementing
+// matricule generation / account creation / welcome email - one code
+// path for "how an élève gets created", whether that's the single-élève
+// admin form or a spreadsheet of 100. Runs sequentially, not
+// Promise.all, for two real reasons: generateMatricule() reads "the
+// last matricule" and increments it, which would race and could hand
+// out duplicate matricules under concurrency; and best not to fire 100+
+// welcome emails at the mailer simultaneously.
+//
+// Expected columns (case/accent-insensitive, matched against the header
+// row): Prenom, Nom, Email, Telephone, DateNaissance, Classe (exact nom,
+// scoped to this centre), CIN, Adresse, NomParent, TelParent. Telephone/
+// CIN/Adresse/NomParent/TelParent are optional; the rest are required.
+const REQUIRED_COLUMNS = ['prenom', 'nom', 'email', 'datenaissance', 'classe']
+
+function normalizeHeader(h) {
+  return String(h || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip accents
+}
+
+async function importFromRows(rows, centreId) {
+  // Resolve each row's "Classe" column (a name, the only thing an admin
+  // filling a spreadsheet could reasonably know) to a classeId scoped to
+  // this centre - never trust a row to name another centre's class.
+  const classes = await prisma.classe.findMany({ where: { centreId }, select: { id: true, nom: true } })
+  const classeByNom = new Map(classes.map(c => [c.nom.trim().toLowerCase(), c.id]))
+
+  const results = []
+  for (const [i, row] of rows.entries()) {
+    const rowNum = i + 2 // +1 for 0-index, +1 for the header row itself
+    try {
+      const missing = REQUIRED_COLUMNS.filter(col => !row[col] && row[col] !== 0)
+      if (missing.length > 0) {
+        throw new Error(`Colonne(s) manquante(s): ${missing.join(', ')}`)
+      }
+
+      const classeId = classeByNom.get(String(row.classe).trim().toLowerCase())
+      if (!classeId) {
+        throw new Error(`Classe "${row.classe}" introuvable dans ce centre`)
+      }
+
+      const dateNaissance = row.datenaissance instanceof Date
+        ? row.datenaissance
+        : new Date(row.datenaissance)
+      if (Number.isNaN(dateNaissance.getTime())) {
+        throw new Error(`Date de naissance invalide: "${row.datenaissance}"`)
+      }
+
+      const eleve = await create({
+        prenom: String(row.prenom).trim(),
+        nom: String(row.nom).trim(),
+        email: String(row.email).trim().toLowerCase(),
+        telephone: row.telephone ? String(row.telephone).trim() : null,
+        classeId,
+        dateNaissance: dateNaissance.toISOString(),
+        cin: row.cin ? String(row.cin).trim() : null,
+        adresse: row.adresse ? String(row.adresse).trim() : null,
+        nomParent: row.nomparent ? String(row.nomparent).trim() : null,
+        telParent: row.telparent ? String(row.telparent).trim() : null
+      }, centreId)
+
+      results.push({ row: rowNum, success: true, matricule: eleve.matricule, email: eleve.utilisateur.email })
+    } catch (err) {
+      results.push({ row: rowNum, success: false, error: err.message || 'Erreur inconnue' })
+    }
+  }
+
+  return {
+    total: results.length,
+    imported: results.filter(r => r.success).length,
+    failed: results.filter(r => !r.success).length,
+    results
+  }
+}
+
+// ── Parent portal (feature addition) ────────────────────────────────
+//
+// Links a PARENT account to an existing élève. If a Utilisateur with
+// this email already exists and has role PARENT, just links it (a
+// second child for the same parent) - otherwise creates a new PARENT
+// account. Rejects an email that belongs to a non-PARENT account
+// (staff/candidat/etudiant) rather than silently repurposing it.
+async function linkParent(eleveId, { email, prenom, nom, telephone }, user) {
+  const eleve = await getById(eleveId, user)
+
+  const normalizedEmail = email.trim().toLowerCase()
+  let parentUser = await prisma.utilisateur.findUnique({ where: { email: normalizedEmail } })
+
+  if (parentUser && parentUser.role !== 'PARENT') {
+    throw { statusCode: 409, message: 'Cet email est déjà utilisé par un autre type de compte' }
+  }
+
+  if (!parentUser) {
+    const bcrypt = require('bcrypt')
+    const crypto = require('crypto')
+    parentUser = await prisma.utilisateur.create({
+      data: {
+        email: normalizedEmail,
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        telephone: telephone?.trim() || null,
+        centreId: eleve.centreId,
+        role: 'PARENT',
+        // Random, never communicated directly - the welcome email below
+        // carries a "set your password" link instead, same mechanism as
+        // eleves.service.js's own welcome-eleve flow.
+        passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12)
+      }
+    })
+
+    try {
+      const rawToken = await authService.issueResetToken(parentUser.id)
+      await authService.sendResetEmail(parentUser, rawToken, { purpose: 'welcome-parent' })
+    } catch (err) {
+      console.error('parent welcome email failed:', err)
+    }
+  }
+
+  await prisma.eleve.update({ where: { id: eleveId }, data: { parentUserId: parentUser.id } })
+
+  return prisma.utilisateur.findUnique({
+    where: { id: parentUser.id },
+    select: { id: true, email: true, prenom: true, nom: true }
+  })
+}
+
+async function unlinkParent(eleveId, user) {
+  await getById(eleveId, user)
+  await prisma.eleve.update({ where: { id: eleveId }, data: { parentUserId: null } })
+  return { message: 'Parent délié' }
+}
+
+module.exports = {
+  getAll, getById, create, update, updateStatut,
+  importFromRows, linkParent, unlinkParent
+}

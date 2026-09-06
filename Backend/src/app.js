@@ -95,6 +95,7 @@ fastify.register(require('./modules/notifications/notifications.routes'), { pref
 fastify.register(require('./modules/rapports/rapports.routes'), { prefix: '/api/rapports' })
 fastify.register(require('./modules/portal/portal.routes'), { prefix: '/api/portal' })
 fastify.register(require('./modules/users/users.routes'), { prefix: '/api/users' })
+fastify.register(require('./modules/calendrier/calendrier.routes'), { prefix: '/api/calendrier' })
 
 // Phase 3 — Site vitrine CMS
 fastify.register(require('./modules/actualites/actualites.routes'), { prefix: '/api/actualites' })
@@ -111,6 +112,16 @@ cron.schedule('0 8 * * *', async () => {
     console.log('✅ Impayés check done')
   } catch (err) {
     console.error('❌ Impayés check failed:', err)
+  }
+})
+
+// Run every day at 8am — check classe capacity (feature addition)
+cron.schedule('0 8 * * *', async () => {
+  try {
+    await notifService.checkCapacite()
+    console.log('✅ Capacité check done')
+  } catch (err) {
+    console.error('❌ Capacité check failed:', err)
   }
 })
 

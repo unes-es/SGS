@@ -84,6 +84,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: '📚', label: 'Filières', to: '/admin/filieres' },
     { icon: '🗓️', label: 'Emplois du temps', to: '/admin/emplois' },
     { icon: '📝', label: 'Notes', to: '/admin/notes' },
+    { icon: '🎉', label: 'Calendrier académique', to: '/admin/calendrier' },
     { section: 'RESSOURCES HUMAINES' },
     { icon: '👥', label: 'Personnel', to: '/admin/personnel' },
     { icon: '💳', label: 'Salaires', to: '/admin/salaires' },

@@ -51,6 +51,7 @@ const Centres = lazy(() => import('./pages/admin/Centres'))
 const Actualites = lazy(() => import('./pages/admin/Actualites'))
 const Evenements = lazy(() => import('./pages/admin/Evenements'))
 const Messages = lazy(() => import('./pages/admin/Messages'))
+const Calendrier = lazy(() => import('./pages/admin/Calendrier'))
 
 function ProtectedRoute({ children }) {
   const { accessToken, user } = useAuthStore()
@@ -72,7 +73,10 @@ function ProtectedRoute({ children }) {
 function PortalRoute({ children }) {
   const { accessToken, user } = useAuthStore()
 
-  if (!user || !['CANDIDAT', 'ETUDIANT'].includes(user.role)) {
+  // PARENT added (feature addition) - reuses the same generic /auth/login
+  // and /portail destination as CANDIDAT/ETUDIANT, see PortailPage.jsx's
+  // isParent branch.
+  if (!user || !['CANDIDAT', 'ETUDIANT', 'PARENT'].includes(user.role)) {
     return <Navigate to="/candidat/login" replace />
   }
   if (!accessToken) return (
@@ -174,6 +178,7 @@ export default function App() {
               <Route path="portail" element={<Soon name="Portail Parents" />} />
               <Route path="actualites" element={<Actualites />} />
               <Route path="evenements" element={<Evenements />} />
+              <Route path="calendrier" element={<Calendrier />} />
               <Route path="messages" element={<Messages />} />
               <Route path="centres" element={<Centres />} />
               <Route path="parametres" element={<Parametres />} />

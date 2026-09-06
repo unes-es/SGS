@@ -42,6 +42,7 @@ const TYPE_ICONS = {
   PAIEMENT:    '💰',
   SYSTEME:     '⚙️',
   CONTACT:     '💬',
+  CAPACITE:    '🏫',
 }
 
 export default function Topbar({ onMenuClick }) {

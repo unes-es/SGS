@@ -14,6 +14,7 @@ const TYPE_ICONS = {
     PAIEMENT: '💰',
     SYSTEME: '⚙️',
     CONTACT: '💬',
+    CAPACITE: '🏫',
 }
 
 const TYPE_COLORS = {
@@ -23,6 +24,7 @@ const TYPE_COLORS = {
     PAIEMENT: 'green',
     SYSTEME: 'gray',
     CONTACT: 'violet',
+    CAPACITE: 'amber',
 }
 
 export default function Notifications() {

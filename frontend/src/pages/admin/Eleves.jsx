@@ -145,12 +145,32 @@ function Field({ label, value, onChange, type = 'text' }) {
 // ── SLIDE PANEL ────────────────────────────────────
 function ElevePanel({ eleve, onClose, onEdit }) {
   const qc = useQueryClient()
+  const [showLierParent, setShowLierParent] = useState(false)
 
   const { mutate: changeStatut } = useMutation({
     mutationFn: (statut) => elevesApi.updateStatut(eleve.id, statut),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['eleves'] })
       toast.success('Statut mis à jour')
+    }
+  })
+
+  // Parent portal (feature addition) - the list row (`eleve` prop, from
+  // elevesApi.getAll) doesn't include the `parent` relation, only
+  // getById does. Refetched here rather than widening getAll's include
+  // for every row just to show this in one detail panel.
+  const { data: detailRes } = useQuery({
+    queryKey: ['eleve-detail', eleve?.id],
+    queryFn: () => elevesApi.getById(eleve.id),
+    enabled: !!eleve
+  })
+  const parent = detailRes?.data?.data?.parent
+
+  const { mutate: unlinkParent, isPending: unlinking } = useMutation({
+    mutationFn: () => elevesApi.unlinkParent(eleve.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['eleve-detail', eleve.id] })
+      toast.success('Parent délié')
     }
   })
 
@@ -188,6 +208,29 @@ function ElevePanel({ eleve, onClose, onEdit }) {
           <Row label="Tél. parent" value={eleve.telParent} />
         </Section>
 
+        <Section title="Compte parent">
+          {parent ? (
+            <>
+              <Row label="Nom" value={`${parent.prenom} ${parent.nom}`} />
+              <Row label="Email" value={parent.email} />
+              <button
+                onClick={() => unlinkParent()}
+                disabled={unlinking}
+                className="mt-2 text-xs text-red-500 hover:underline disabled:opacity-50"
+              >
+                Délier ce compte parent
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowLierParent(true)}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              + Lier un compte parent
+            </button>
+          )}
+        </Section>
+
         <Section title="Changer le statut">
           <div className="flex flex-wrap gap-1.5">
             {['ACTIF', 'SUSPENDU', 'DIPLOME', 'ABANDONNE', 'RADIE'].map(s => (
@@ -216,6 +259,80 @@ function ElevePanel({ eleve, onClose, onEdit }) {
           📄 Documents
         </button>
       </div>
+
+      {showLierParent && (
+        <LierParentModal
+          eleveId={eleve.id}
+          onClose={() => setShowLierParent(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Parent portal (feature addition) - links an existing PARENT account
+// (matched by email) or creates a new one. Deliberately a separate
+// small modal, not folded into EleveModal above - this is a
+// post-enrollment action on an existing élève, not part of the
+// create/edit form.
+function LierParentModal({ eleveId, onClose }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ email: '', prenom: '', nom: '', telephone: '' })
+  const [error, setError] = useState('')
+
+  const { mutate: link, isPending } = useMutation({
+    mutationFn: () => elevesApi.linkParent(eleveId, form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['eleve-detail', eleveId] })
+      toast.success('Compte parent lié')
+      onClose()
+    },
+    onError: (err) => setError(err.response?.data?.message || 'Erreur')
+  })
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setError('')
+    if (!form.email || !form.prenom || !form.nom) {
+      setError('Email, prénom et nom sont requis')
+      return
+    }
+    link()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Lier un compte parent</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Si un compte parent existe déjà avec cet email, il sera simplement lié à cet élève.
+          Sinon, un nouveau compte sera créé et un email de bienvenue sera envoyé.
+        </p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-2.5 mb-4">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Field label="Email du parent" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} type="email" />
+          <Field label="Prénom" value={form.prenom} onChange={v => setForm(f => ({ ...f, prenom: v }))} />
+          <Field label="Nom" value={form.nom} onChange={v => setForm(f => ({ ...f, nom: v }))} />
+          <Field label="Téléphone (optionnel)" value={form.telephone} onChange={v => setForm(f => ({ ...f, telephone: v }))} />
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg py-2.5 transition">
+              Annuler
+            </button>
+            <button type="submit" disabled={isPending}
+              className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg py-2.5 transition">
+              {isPending ? 'Liaison...' : 'Lier'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
@@ -241,6 +358,87 @@ function Row({ label, value, mono }) {
 }
 
 // ── MAIN PAGE ──────────────────────────────────────
+// Bulk import (feature addition) - a single file input + submit, then a
+// per-row success/failure report. Deliberately no client-side template
+// generator: the expected columns are just documented in the modal copy
+// (case/accent-insensitive matching is done server-side - see
+// eleves.service.js importFromRows()), so any spreadsheet with roughly
+// the right headers works rather than requiring an exact downloaded
+// template.
+function ImportElevesModal({ onClose, onDone }) {
+  const [file, setFile] = useState(null)
+  const [report, setReport] = useState(null)
+
+  const { mutate: doImport, isPending } = useMutation({
+    mutationFn: () => elevesApi.import(file),
+    onSuccess: (res) => {
+      setReport(res.data.data)
+      onDone()
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Erreur lors de l\'import')
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Importer des élèves (Excel)</h2>
+
+        {!report ? (
+          <>
+            <p className="text-xs text-gray-500 mb-4">
+              Fichier .xlsx avec une ligne d'en-tête et les colonnes :
+              <br />
+              <span className="font-mono text-[11px]">Prenom, Nom, Email, DateNaissance, Classe</span> (requis),
+              <br />
+              <span className="font-mono text-[11px]">Telephone, CIN, Adresse, NomParent, TelParent</span> (optionnels).
+              <br />
+              La colonne <strong>Classe</strong> doit correspondre exactement au nom d'une classe existante dans ce centre.
+            </p>
+
+            <input
+              type="file"
+              accept=".xlsx"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 mb-4"
+            />
+
+            <div className="flex gap-2">
+              <button onClick={onClose}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg py-2.5 transition">
+                Annuler
+              </button>
+              <button
+                onClick={() => doImport()}
+                disabled={!file || isPending}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg py-2.5 transition">
+                {isPending ? 'Import en cours...' : 'Importer'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600 mb-3">
+              <strong className="text-green-600">{report.imported}</strong> importé(s) sur {report.total},{' '}
+              <strong className={report.failed > 0 ? 'text-red-500' : 'text-gray-400'}>{report.failed}</strong> échec(s).
+            </p>
+            <div className="space-y-1.5 mb-4">
+              {report.results.map(r => (
+                <div key={r.row} className={`text-xs px-3 py-2 rounded-lg ${r.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  Ligne {r.row} — {r.success ? `✓ ${r.email} (${r.matricule})` : `✗ ${r.error}`}
+                </div>
+              ))}
+            </div>
+            <button onClick={onClose}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg py-2.5 transition">
+              Fermer
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Eleves() {
   const { user } = useAuthStore?.() || {}
   const { selectedCentreId } = useCentreStore()
@@ -252,6 +450,7 @@ export default function Eleves() {
   const [modal, setModal] = useState(null) // null | 'create' | eleve object
   const [selected, setSelected] = useState(null)
   const [classeId, setClasseId] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['eleves', { search, statut, classeId, page, selectedCentreId }],
@@ -310,12 +509,24 @@ export default function Eleves() {
             {printing ? '...' : '🖨️ Imprimer'}
           </button>
           <button
+            onClick={() => setShowImport(true)}
+            className="no-print border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition">
+            📥 Importer
+          </button>
+          <button
             onClick={() => setModal('create')}
             className="no-print bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
             ➕ Nouvel élève
           </button>
         </div>
       </div>
+
+      {showImport && (
+        <ImportElevesModal
+          onClose={() => setShowImport(false)}
+          onDone={() => qc.invalidateQueries({ queryKey: ['eleves'] })}
+        />
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 lg:gap-3 flex-wrap">

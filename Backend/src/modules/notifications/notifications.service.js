@@ -115,7 +115,55 @@ async function checkImpayés() {
   }
 }
 
+// Classe capacity alerts - mirrors checkImpayés() above exactly: one
+// broadcast notification per centre per day (the "already sent today"
+// dedup check), so a class sitting at 90% all week doesn't spam a new
+// notification every single time the cron runs.
+const CAPACITE_THRESHOLD_PCT = 80
+
+async function checkCapacite() {
+  const classes = await prisma.classe.findMany({
+    include: { _count: { select: { eleves: true } } }
+  })
+
+  const pleines = classes
+    .map(c => ({ ...c, pct: c.capaciteMax > 0 ? Math.round((c._count.eleves / c.capaciteMax) * 100) : 0 }))
+    .filter(c => c.pct >= CAPACITE_THRESHOLD_PCT)
+
+  const byCentre = {}
+  for (const c of pleines) {
+    if (!byCentre[c.centreId]) byCentre[c.centreId] = []
+    byCentre[c.centreId].push(c)
+  }
+
+  for (const [centreId, classesPleines] of Object.entries(byCentre)) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const existing = await prisma.notification.findFirst({
+      where: { centreId, type: 'CAPACITE', createdAt: { gte: today } }
+    })
+
+    if (!existing) {
+      const noms = classesPleines
+        .map(c => `${c.nom} (${c._count.eleves}/${c.capaciteMax})`)
+        .join(', ')
+      const nbPleines = classesPleines.filter(c => c.pct >= 100).length
+
+      await createBroadcast({
+        centreId,
+        type:    'CAPACITE',
+        titre:   `${classesPleines.length} classe(s) proche(s) de leur capacité maximale`,
+        message: nbPleines > 0
+          ? `${noms}. ${nbPleines} classe(s) ont atteint 100% de leur capacité.`
+          : `${noms}.`,
+        link:    '/admin/classes'
+      })
+    }
+  }
+}
+
 module.exports = {
   getAll, markRead, markAllRead,
-  create, createBroadcast, checkImpayés
+  create, createBroadcast, checkImpayés, checkCapacite
 }

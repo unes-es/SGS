@@ -153,9 +153,96 @@ async function getMyEleveDocumentPdf(userId, documentId) {
   return documentsService.generatePdf(documentId)
 }
 
+// ── Parent Portal (feature addition) ────────────────────────────────
+//
+// A parent can have more than one child, unlike ETUDIANT above (exactly
+// one own record) - so every function here takes an explicit eleveId
+// and verifies it's actually one of the caller's own children first via
+// assertOwnChild, rather than resolving a single implicit record. Same
+// "provably can't touch someone else's data" posture as the rest of
+// this file, just shaped for a one-to-many relationship instead of
+// one-to-one.
+
+async function getMyChildren(userId) {
+  return prisma.eleve.findMany({
+    where: { parentUserId: userId },
+    include: {
+      utilisateur: { select: { prenom: true, nom: true } },
+      classe: { include: { filiere: { select: { nom: true } } } }
+    },
+    orderBy: { createdAt: 'asc' }
+  })
+}
+
+async function assertOwnChild(userId, eleveId) {
+  const eleve = await prisma.eleve.findFirst({ where: { id: eleveId, parentUserId: userId } })
+  // 404, not 403 - don't confirm to the caller that an élève with this
+  // id exists at all if it isn't their own child, same reasoning as
+  // getMyEleveDocumentPdf() below.
+  if (!eleve) throw { statusCode: 404, message: 'Élève non trouvé' }
+  return eleve
+}
+
+async function getChildNotes(userId, eleveId) {
+  await assertOwnChild(userId, eleveId)
+  return prisma.note.findMany({
+    where: { eleveId },
+    include: { matiere: { select: { nom: true } } },
+    orderBy: [{ periode: 'desc' }, { dateEval: 'desc' }]
+  })
+}
+
+async function getChildAbsences(userId, eleveId) {
+  await assertOwnChild(userId, eleveId)
+  return prisma.absence.findMany({
+    where: { eleveId },
+    include: { matiere: { select: { nom: true } } },
+    orderBy: { dateAbsence: 'desc' }
+  })
+}
+
+async function getChildEmploiDuTemps(userId, eleveId) {
+  const eleve = await assertOwnChild(userId, eleveId)
+  return prisma.emploiDuTemps.findMany({
+    where: { classeId: eleve.classeId },
+    include: {
+      matiere: { select: { nom: true } },
+      professeur: { select: { utilisateur: { select: { prenom: true, nom: true } } } }
+    },
+    orderBy: [{ jourSemaine: 'asc' }, { heureDebut: 'asc' }]
+  })
+}
+
+async function getChildPaiements(userId, eleveId) {
+  await assertOwnChild(userId, eleveId)
+  return prisma.paiementEleve.findMany({
+    where: { eleveId },
+    orderBy: { datePaiement: 'desc' }
+  })
+}
+
+async function getChildDocuments(userId, eleveId) {
+  await assertOwnChild(userId, eleveId)
+  return prisma.document.findMany({
+    where: { eleveId },
+    orderBy: { createdAt: 'desc' }
+  })
+}
+
+async function getChildDocumentPdf(userId, eleveId, documentId) {
+  await assertOwnChild(userId, eleveId)
+  const doc = await documentsService.getById(documentId)
+  if (doc.eleveId !== eleveId) {
+    throw { statusCode: 404, message: 'Document non trouvé' }
+  }
+  return documentsService.generatePdf(documentId)
+}
+
 module.exports = {
   getMyCandidature, getMyEleve,
   getMyDocuments, addMyDocument, getMyEvenements, addMyMessage,
   getMyNotes, getMyAbsences, getMyEmploiDuTemps, getMyPaiements,
-  getMyEleveDocuments, getMyEleveDocumentPdf
+  getMyEleveDocuments, getMyEleveDocumentPdf,
+  getMyChildren, getChildNotes, getChildAbsences, getChildEmploiDuTemps,
+  getChildPaiements, getChildDocuments, getChildDocumentPdf
 }
